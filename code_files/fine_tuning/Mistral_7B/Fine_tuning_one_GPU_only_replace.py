@@ -8,22 +8,22 @@ import os
 # import ..utils
 import sys
 sys.path.append('/sise/home/urizlo/VuLLM_One_Stage')
-from utils import Custom_trainer, CodeT5p_6B, Create_lora
-from code_files.preprocess_data import Prepare_dataset_with_only_replace
+from utils import Custom_trainer, Mistral_7B, Create_lora
+from code_files.preprocess_data import Prepare_dataset_with_only_replace_mistral
 import argparse
 from dotenv import load_dotenv
 
 
 def main(path_trainset, path_testset, full_vulgen, output_dir, learning_rate, per_device_train_batch_size, num_train_epochs, generation_num_beams):    
-    checkpoint = "Salesforce/codet5p-6b"
+    checkpoint = "mistralai/Mistral-7B-v0.1"
     load_dotenv()
     torch.backends.cuda.matmul.allow_tf32 = True
     torch.backends.cudnn.allow_tf32 = True
     
-    model, tokenizer = CodeT5p_6B.create_model_and_tokenizer(checkpoint)
+    model, tokenizer = Mistral_7B.create_model_and_tokenizer(checkpoint)
 
     # read and tokenized data
-    tokenized_train, tokenized_test = Prepare_dataset_with_only_replace.create_datasets(tokenizer, path_trainset, path_testset, full_vulgen=full_vulgen)
+    tokenized_train, tokenized_test = Prepare_dataset_with_only_replace_mistral.create_datasets(tokenizer, path_trainset, path_testset, full_vulgen=full_vulgen)
 
     # create lora adaptors
     model = Create_lora.create_lora(model, rank=64, dropout=0.05)

@@ -7,7 +7,7 @@ import re
 from collections import defaultdict
 from transformers import AutoTokenizer
 import hashlib
-
+from matplotlib import pyplot as plt
 
 def last_diff(diff, changes):
     """
@@ -477,10 +477,13 @@ def tokenize(data, tokenizer):
     Returns:
         dict: A dictionary containing the tokenized model inputs and labels.
     """
-    model_inputs = tokenizer(data['inputs'].tolist(), return_tensors='pt', padding='longest', truncation=True)
-    model_outputs = tokenizer(data['outputs'].tolist(), return_tensors='pt', padding='longest',  truncation=True)
+    model_inputs = tokenizer(data['inputs'].tolist(), return_tensors='pt', padding='max_length', truncation=True, max_length=2048)
+    model_outputs = tokenizer(data['outputs'].tolist(), return_tensors='pt', padding='max_length', truncation=True, max_length=2048)
     labels = model_outputs['input_ids']
-    labels = change_pads_token_expect_the_first_one(labels, tokenizer.pad_token_id)
+    pad_token_mask = labels == tokenizer.pad_token_id
+    # labels[pad_token_mask] = -100
+
+    # labels = change_pads_token_expect_the_first_one(labels, tokenizer.pad_token_id)
     model_inputs['labels'] = labels
     return model_inputs
 
@@ -526,11 +529,26 @@ def create_datasets(tokenizer, path_trainset, path_testset, full_vulgen=False):
     test['outputs'] = get_outpus(test, test_edits)
     tokenized_train = tokenize(train, tokenizer)
     tokenized_test = tokenize(test, tokenizer)
+    plot_data_len(tokenized_train, tokenized_test)
     tokenized_train = Dataset.from_dict(tokenized_train)
     tokenized_test = Dataset.from_dict(tokenized_test)
+    
     return tokenized_train, tokenized_test
 
 
+
+def plot_data_len(tokenized_train, tokenized_test):
+    lengths = [len(x) for x in tokenized_train['input_ids']]
+    lengths += [len(x) for x in tokenized_test['input_ids']]
+    plt.figure(figsize=(10, 6))
+    plt.hist(lengths, bins=20, alpha=0.7, color='blue')
+    plt.xlabel('Length of the input sequence')
+    plt.ylabel('Frequency')
+    plt.title('Distribution of input sequence lengths')
+    plt.show()
+    print("Max length of input sequence:", max(lengths))
+               
+            
 
 def get_testset_for_eval(tokenizer, path_testset, all_vulgen, drop_index_path):
     test = get_test(path_testset, full_vulgen=all_vulgen)
