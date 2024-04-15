@@ -1,0 +1,8 @@
+.env
+Datasets/
+saved_models/
+__pycache__/
+.neptune/
+.vscode/
+gen_vuls/
+TensorBoard/
