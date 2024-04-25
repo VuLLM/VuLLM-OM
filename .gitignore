@@ -1,5 +1,6 @@
 .env
 Datasets/
+hello/
 saved_models/
 __pycache__/
 .neptune/

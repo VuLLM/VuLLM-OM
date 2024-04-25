@@ -9,12 +9,13 @@ import os
 import sys
 sys.path.append('/sise/home/urizlo/VuLLM_One_Stage')
 from utils import Custom_trainer, CodeT5p_6B, Create_lora
-from code_files import Prepare_dataset_with_only_replace
+from code_files.preprocess_data import Prepare_dataset_with_only_replace_codeT5
 import argparse
 from dotenv import load_dotenv
 
 
 def main(path_trainset, path_testset, full_vulgen, output_dir, learning_rate, per_device_train_batch_size, num_train_epochs, generation_num_beams):    
+    # os.environ["CUDA_VISIBLE_DEVICES"] = "0"
     checkpoint = "Salesforce/codet5p-6b"
     load_dotenv()
     torch.backends.cuda.matmul.allow_tf32 = True
@@ -23,7 +24,7 @@ def main(path_trainset, path_testset, full_vulgen, output_dir, learning_rate, pe
     model, tokenizer = CodeT5p_6B.create_model_and_tokenizer(checkpoint)
 
     # read and tokenized data
-    tokenized_train, tokenized_test = Prepare_dataset_with_only_replace.create_datasets(tokenizer, path_trainset, path_testset, full_vulgen=full_vulgen)
+    tokenized_train, tokenized_test = Prepare_dataset_with_only_replace_codeT5.create_datasets(tokenizer, path_trainset, path_testset, full_vulgen=full_vulgen)
 
     # create lora adaptors
     model = Create_lora.create_lora(model, rank=64, dropout=0.05)
@@ -145,3 +146,5 @@ if __name__ == "__main__":
     parser.add_argument('--generation_num_beams', type=int, default=1, help='Number of beams for generation')
     args = parser.parse_args()
     main(args.path_trainset, args.path_testset, args.full_vulgen ,args.output_dir, args.learning_rate, args.batch_size_per_device, args.epochs, args.generation_num_beams)
+    
+    # python code_files/fine_tuning/CodeT5+/Fine_tuning_one_GPU_only_replace.py --path_trainset Datasets/vulgen_train_with_diff_lines_spaces.csv --path_testset Datasets/vulgen_test_with_diff_lines_spaces.csv --full_vulgen true --output_dir hello --learning_rate 5e-5 --batch_size_per_device 1 --epochs 4 --generation_num_beams 1

@@ -1,24 +1,21 @@
 import torch
 from torch import nn
-from transformers import AutoTokenizer, AutoModelForCausalLM
-# from accelerate import Accelerator
+from transformers import AutoTokenizer, MistralForCausalLM
+from accelerate import Accelerator
 from peft import PeftModel, PeftConfig
 
 
 
 def create_model_and_tokenizer(checkpoint):
-    device= "cuda"
-    tokenizer = AutoTokenizer.from_pretrained(checkpoint, padding_side="left",
-                                              add_bos_token=True,
-                                              add_eos_token=True)
+    device_index = Accelerator().process_index
+    device_map = {"": device_index}
+    tokenizer = AutoTokenizer.from_pretrained(checkpoint, padding_side="left")
     tokenizer.pad_token = tokenizer.eos_token    
+    
     # tokenizer.deprecation_warnings["Asking-to-pad-a-fast-tokenizer"] = True
-    # device_index = Accelerator().process_index
-    # device_map = {"": device_index}
-    model = AutoModelForCausalLM.from_pretrained(checkpoint,
+    model = MistralForCausalLM.from_pretrained(checkpoint,
                                             torch_dtype=torch.bfloat16,
-                                            device_map='auto',
-                                            trust_remote_code=True)
+                                            device_map=device_map)
 
     # Add dropout to model layers
     # model.encoder.drop = nn.Dropout(p=0.05, inplace=False)
@@ -39,7 +36,7 @@ def load_model_and_tokenizer(peft_model_id, from_hub=False, eval=False):
         # device_index = Accelerator().process_index
         # device_map = {"": device_index}
         config = PeftConfig.from_pretrained(peft_model_id)
-        model = AutoModelForCausalLM.from_pretrained(config.base_model_name_or_path, return_dict=True,
+        model = MistralForCausalLM.from_pretrained(config.base_model_name_or_path, return_dict=True,
                                                         torch_dtype=torch.bfloat16,
                                                         trust_remote_code=True).to(device)
         tokenizer = AutoTokenizer.from_pretrained(config.base_model_name_or_path)
@@ -51,7 +48,7 @@ def load_model_and_tokenizer(peft_model_id, from_hub=False, eval=False):
         tokenizer = AutoTokenizer.from_pretrained(peft_model_id)
         # device_index = Accelerator().process_index
         # device_map = {"": device_index}
-        model = AutoModelForCausalLM.from_pretrained(
+        model = MistralForCausalLM.from_pretrained(
                 pretrained_model_name_or_path="saved_models/local_model/6B/second_round/checkpoint-7770",
                 torch_dtype=torch.bfloat16,
                 trust_remote_code=True).to(device)    
