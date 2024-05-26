@@ -1,118 +1,136 @@
 
-from typing import Dict, Optional, List, Union, Any
+from typing import Optional, List
 import torch
 from trl import SFTTrainer
-from datasets import Dataset
-from transformers.integrations.tpu import tpu_spmd_dataloader
-import time
-from transformers.trainer_utils import speed_metrics
-import math
-from transformers.debug_utils import DebugOption
-from transformers.utils import is_torch_xla_available
+from transformers.integrations.deepspeed import deepspeed_init
+from torch.utils.data import DataLoader
+from transformers.trainer_utils import EvalLoopOutput, has_length, denumpify_detensorize
+from transformers.utils import logging
 # from torch import xla
 # if is_torch_xla_available():
 #     import xla.core.xla_model as xm
 #     import xla.debug.metrics as met
 
 class Custom_SFTTrainer(SFTTrainer):
-    def evaluate(
+    def evaluation_loop(
         self,
-        eval_dataset: Optional[Union[Dataset, Dict[str, Dataset]]] = None,
+        dataloader: DataLoader,
+        description: str,
+        prediction_loss_only: Optional[bool] = None,
         ignore_keys: Optional[List[str]] = None,
         metric_key_prefix: str = "eval",
-    ) -> Dict[str, float]:
+    ) -> EvalLoopOutput:
         """
-        Run evaluation and returns metrics.
+        Prediction/evaluation loop, shared by `Trainer.evaluate()` and `Trainer.predict()`.
 
-        The calling script will be responsible for providing a method to compute metrics, as they are task-dependent
-        (pass it to the init `compute_metrics` argument).
-
-        You can also subclass and override this method to inject custom behavior.
-
-        Args:
-            eval_dataset (Union[`Dataset`, Dict[str, `Dataset`]), *optional*):
-                Pass a dataset if you wish to override `self.eval_dataset`. If it is a [`~datasets.Dataset`], columns
-                not accepted by the `model.forward()` method are automatically removed. If it is a dictionary, it will
-                evaluate on each dataset, prepending the dictionary key to the metric name. Datasets must implement the
-                `__len__` method.
-
-                <Tip>
-
-                If you pass a dictionary with names of datasets as keys and datasets as values, evaluate will run
-                separate evaluations on each dataset. This can be useful to monitor how training affects other
-                datasets or simply to get a more fine-grained evaluation.
-                When used with `load_best_model_at_end`, make sure `metric_for_best_model` references exactly one
-                of the datasets. If you, for example, pass in `{"data1": data1, "data2": data2}` for two datasets
-                `data1` and `data2`, you could specify `metric_for_best_model="eval_data1_loss"` for using the
-                loss on `data1` and `metric_for_best_model="eval_data1_loss"` for the loss on `data2`.
-
-                </Tip>
-
-            ignore_keys (`List[str]`, *optional*):
-                A list of keys in the output of your model (if it is a dictionary) that should be ignored when
-                gathering predictions.
-            metric_key_prefix (`str`, *optional*, defaults to `"eval"`):
-                An optional prefix to be used as the metrics key prefix. For example the metrics "bleu" will be named
-                "eval_bleu" if the prefix is "eval" (default)
-
-        Returns:
-            A dictionary containing the evaluation loss and the potential metrics computed from the predictions. The
-            dictionary also contains the epoch number which comes from the training state.
+        Works both with or without labels.
         """
-        # handle multipe eval datasets
-        with torch.no_grad():
-            eval_dataset = eval_dataset if eval_dataset is not None else self.eval_dataset
-            if isinstance(eval_dataset, dict):
-                metrics = {}
-                for eval_dataset_name, _eval_dataset in eval_dataset.items():
-                    dataset_metrics = self.evaluate(
-                        eval_dataset=_eval_dataset,
-                        ignore_keys=ignore_keys,
-                        metric_key_prefix=f"{metric_key_prefix}_{eval_dataset_name}",
-                    )
-                    metrics.update(dataset_metrics)
-                return metrics
+        args = self.args
+        logger = logging.get_logger(__name__)
 
-            # # memory metrics - must set up as early as possible
-            # self._memory_tracker.start()
+        prediction_loss_only = prediction_loss_only if prediction_loss_only is not None else args.prediction_loss_only
 
-            # eval_dataloader = self.get_eval_dataloader(eval_dataset)
-            # if self.is_fsdp_xla_v2_enabled:
-            #     eval_dataloader = tpu_spmd_dataloader(eval_dataloader)
+        # if eval is called w/o train, handle model prep here
+        if self.is_deepspeed_enabled and self.deepspeed is None:
+            _, _ = deepspeed_init(self, num_training_steps=0, inference=True)
 
-            # start_time = time.time()
+        model = self._wrap_model(self.model, training=False, dataloader=dataloader)
 
-            # eval_loop = self.prediction_loop if self.args.use_legacy_prediction_loop else self.evaluation_loop
-            # output = eval_loop(
-            #     eval_dataloader,
-            #     description="Evaluation",
-            #     # No point gathering the predictions if there are no metrics, otherwise we defer to
-            #     # self.args.prediction_loss_only
-            #     prediction_loss_only=True if self.compute_metrics is None else None,
-            #     ignore_keys=ignore_keys,
-            #     metric_key_prefix=metric_key_prefix,
-            # )
+        if len(self.accelerator._models) == 0 and model is self.model:
+            model = (
+                self.accelerator.prepare(model)
+                if self.is_deepspeed_enabled
+                else self.accelerator.prepare_model(model, evaluation_mode=True)
+            )
 
-            # total_batch_size = self.args.eval_batch_size * self.args.world_size
-            # if f"{metric_key_prefix}_jit_compilation_time" in output.metrics:
-            #     start_time += output.metrics[f"{metric_key_prefix}_jit_compilation_time"]
-            # output.metrics.update(
-            #     speed_metrics(
-            #         metric_key_prefix,
-            #         start_time,
-            #         num_samples=output.num_samples,
-            #         num_steps=math.ceil(output.num_samples / total_batch_size),
-            #     )
-            # )
+            if self.is_fsdp_enabled:
+                self.model = model
 
-            # self.log(output.metrics)
+            # for the rest of this function `model` is the outside model, whether it was wrapped or not
+            if model is not self.model:
+                self.model_wrapped = model
 
-            # if DebugOption.TPU_METRICS_DEBUG in self.args.debug:
-            #     # tpu-comment: Logging debug metrics for PyTorch/XLA (compile, execute times, ops, etc.)
-            #     xm.master_print(met.metrics_report())
+            # backward compatibility
+            if self.is_deepspeed_enabled:
+                self.deepspeed = self.model_wrapped
 
-            # self.control = self.callback_handler.on_evaluate(self.args, self.state, self.control, output.metrics)
+        # if full fp16 or bf16 eval is wanted and this ``evaluation`` or ``predict`` isn't called
+        # while ``train`` is running, cast it to the right dtype first and then put on device
+        if not self.is_in_train:
+            if args.fp16_full_eval:
+                model = model.to(dtype=torch.float16, device=args.device)
+            elif args.bf16_full_eval:
+                model = model.to(dtype=torch.bfloat16, device=args.device)
 
-            # self._memory_tracker.stop_and_update_metrics(output.metrics)
+        batch_size = self.args.eval_batch_size
 
-            # return output.metrics
+        logger.info(f"***** Running {description} *****")
+        if has_length(dataloader):
+            logger.info(f"  Num examples = {self.num_examples(dataloader)}")
+        else:
+            logger.info("  Num examples: Unknown")
+        logger.info(f"  Batch size = {batch_size}")
+
+        model.eval()
+
+        self.callback_handler.eval_dataloader = dataloader
+        # Do this before wrapping.
+        eval_dataset = getattr(dataloader, "dataset", None)
+
+        if args.past_index >= 0:
+            self._past = None
+
+        # Initialize accumulators for metrics
+        total_loss = 0.0
+        total_accuracy = 0.0
+        total_google_bleu = 0.0
+        total_sacre_bleu = 0.0
+        total_gen_len = 0
+        total_batches = 0
+
+        # Main evaluation loop
+        for step, inputs in enumerate(dataloader):
+            # Prediction step
+            loss, logits, labels = self.prediction_step(model, inputs, prediction_loss_only, ignore_keys=ignore_keys)
+            main_input_name = getattr(self.model, "main_input_name", "input_ids")
+            inputs_decode = self._prepare_input(inputs[main_input_name]) if args.include_inputs_for_metrics else None
+
+            # Update accumulators
+            if loss is not None:
+                total_loss += loss.item()
+
+            if logits is not None and labels is not None:
+                # Compute batch-level metrics
+                logits.cpu().numpy()
+                labels.cpu().numpy()
+                batch_metrics = self.compute_metrics((logits, labels))
+
+                total_accuracy += batch_metrics.get('eval_accuracy', 0)
+                total_google_bleu += batch_metrics.get('googleBleu', 0)
+                total_sacre_bleu += batch_metrics.get('sacreBleu', 0)
+                total_gen_len += batch_metrics.get('gen_len', 0)
+
+            total_batches += 1
+
+            self.control = self.callback_handler.on_prediction_step(args, self.state, self.control)
+
+        # Finalize metrics
+        average_loss = total_loss / total_batches
+        average_accuracy = total_accuracy / total_batches
+        average_google_bleu = total_google_bleu / total_batches
+        average_sacre_bleu = total_sacre_bleu / total_batches
+        average_gen_len = total_gen_len / total_batches
+
+        metrics = {
+            f"{metric_key_prefix}_loss": average_loss,
+            f"{metric_key_prefix}_accuracy": average_accuracy,
+            f"{metric_key_prefix}_googleBleu": average_google_bleu,
+            f"{metric_key_prefix}_sacreBleu": average_sacre_bleu,
+            f"{metric_key_prefix}_gen_len": average_gen_len,
+        }
+
+        # To be JSON-serializable, we need to remove numpy types or zero-d tensors
+        metrics = denumpify_detensorize(metrics)
+
+        return EvalLoopOutput(predictions=None, label_ids=None, metrics=metrics, num_samples=self.num_examples(dataloader) if has_length(dataloader) else None)
+

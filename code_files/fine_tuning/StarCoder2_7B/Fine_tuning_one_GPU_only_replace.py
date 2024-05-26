@@ -1,12 +1,9 @@
 from transformers import TrainingArguments, DataCollatorForLanguageModeling
-from trl import SFTTrainer
+# from trl import SFTTrainer
 import torch
 import numpy as np
-# import neptune
-# from accelerate import Accelerator
 import evaluate
 import os
-# import ..utils
 import sys
 sys.path.append('/sise/home/urizlo/VuLLM_One_Stage')
 from utils import StarCoder2_7B, Create_lora_starCoder, Custom_SFTTrainer
@@ -51,13 +48,19 @@ def main():
     def compute_metrics(eval_preds):
         preds, labels = eval_preds
         gen_len_list = []
+
         if isinstance(preds, tuple):
             preds = preds[0]
-                # Convert preds to tensor if it's a NumPy array
+            
+        # Convert preds to tensor if it's a NumPy array
         if isinstance(preds, np.ndarray):
             preds = torch.tensor(preds)
         preds = torch.argmax(torch.softmax(preds, dim=-1), dim=-1)
         decoded_preds = tokenizer.batch_decode(preds, skip_special_tokens=True)
+
+        # Ensure labels are in numpy array format
+        if isinstance(labels, torch.Tensor):
+            labels = labels.cpu().numpy()
 
         labels = np.where(labels != -100, labels, tokenizer.pad_token_id)
         decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
@@ -68,16 +71,20 @@ def main():
                 decoded_preds[i] = decoded_preds[i].split("instruction")[1]
                 decoded_labels[i] = decoded_labels[i][0].split("instruction")[1]
                 gen_len_list.append(len(tokenizer.encode(decoded_preds[i])))
-        print("decoded_labels[0]: ", decoded_labels[0])
-        print("\n" + "\n")
-        print("decoded_preds[0]: ", decoded_preds[0])
-        #ScareBleu
+
+        # print("decoded_labels[0]: ", decoded_labels[0])
+        # print("\n" + "\n")
+        # print("decoded_preds[0]: ", decoded_preds[0])
+
+        # SacreBleu
         results = metric.compute(predictions=decoded_preds, references=decoded_labels)
         result = {"sacreBleu": results["score"]}
-        #GoogleBlue
+
+        # GoogleBleu
         results = google_bleu.compute(predictions=decoded_preds, references=decoded_labels)
         result["googleBleu"] = results["google_bleu"]
-        #Accuracy
+
+        # Accuracy
         count = 0
         for p, l in zip(decoded_preds, decoded_labels):
             if p == l:
@@ -85,11 +92,13 @@ def main():
         total_tokens = len(decoded_labels)
         accuracy = count / total_tokens
         result['eval_accuracy'] = accuracy
-        #Genaration length
+
+        # Generation length
         if gen_len_list:
             result["gen_len"] = round(np.mean(gen_len_list), 4)
+
         result = {k: round(v, 4) for k, v in result.items()}
-        print("Computed metrics:", result)
+        # print("Computed metrics:", result)
         return result
     
     # def preprocess_logits_for_metrics(logits, labels):
@@ -100,13 +109,13 @@ def main():
     # # config env varibles
     # NEPTUNE_API_TOKEN = os.environ.get("NEPTUNE_API_TOKEN")
     # NEPTUNE_PROJECT = os.environ.get("NEPTUNE_PROJECT")
-    # os.environ["NEPTUNE_API_TOKEN"] = 'eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiI4Y2VlNTFhZC1hODJkLTQ4NzItOTE0MS0yZmNkNWY3ZWE0MTEifQ=='
-    # os.environ["NEPTUNE_PROJECT"] = 'zlotman/Localization-model'
+    os.environ["NEPTUNE_API_TOKEN"] = 'eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiI4Y2VlNTFhZC1hODJkLTQ4NzItOTE0MS0yZmNkNWY3ZWE0MTEifQ=='
+    os.environ["NEPTUNE_PROJECT"] = 'zlotman/Localization-model'
     os.environ["NCCL_P2P_DISABLE"] = "1"
     os.environ["TOKENIZERS_PARALLELISM"] = "true"
     # Disable Neptune environment variables
-    os.environ.pop("NEPTUNE_API_TOKEN", None)
-    os.environ.pop("NEPTUNE_PROJECT", None)
+    # os.environ.pop("NEPTUNE_API_TOKEN", None)
+    # os.environ.pop("NEPTUNE_PROJECT", None)
 
     # create trainer object
     training_args = TrainingArguments(
@@ -120,12 +129,12 @@ def main():
         per_device_eval_batch_size=1,
         gradient_accumulation_steps=1,
         weight_decay=0.001,
-        num_train_epochs=4,
+        num_train_epochs=30,
         # predict_with_generate=True,
         bf16=True,
         tf32=True,
         bf16_full_eval=True,
-        eval_accumulation_steps=32,
+        eval_accumulation_steps=1,
         label_names = ["labels"],
         # remove_unused_columns=False,
         # logging_dir="TensorBoard",
@@ -136,7 +145,7 @@ def main():
         # generation_num_beams=1,
         dataloader_num_workers=6,
         # warmup_steps=57000,
-        report_to="none",
+        report_to="neptune",
         lr_scheduler_type='linear',
         save_strategy="epoch",
         save_total_limit=2,
@@ -147,7 +156,7 @@ def main():
 
     data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
     max_seq_length = 2048
-    trainer = SFTTrainer(
+    trainer = Custom_SFTTrainer.Custom_SFTTrainer(
         model=model,
         args=training_args,
         dataset_batch_size=1,

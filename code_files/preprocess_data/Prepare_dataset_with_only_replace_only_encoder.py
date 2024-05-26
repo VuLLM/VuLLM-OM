@@ -529,8 +529,8 @@ def create_datasets(path_trainset, path_testset, full_vulgen=False):
     train['outputs'] = get_outpus(train, train_edits)
     test['inputs'] = get_inputs(test)
     test['outputs'] = get_outpus(test, test_edits)
-    test = test[test['inputs'].str.len() + test['outputs'].str.len() <= 1500]  # Drop rows where 'inputs' length is larger than 1500
-    train = train[:5]
+    # test = test[test['inputs'].str.len() + test['outputs'].str.len() <= 1500]  # Drop rows where 'inputs' length is larger than 1500
+    # train = train[:1000]
     # test = test[:50]
     # train = Dataset.from_pandas(train)
     # test= Dataset.from_pandas(test)
