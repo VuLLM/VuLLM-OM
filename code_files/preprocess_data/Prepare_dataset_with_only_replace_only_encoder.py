@@ -508,6 +508,8 @@ def process_c_functions(df, column_name):
 
 
 
+
+
 def create_datasets(path_trainset, path_testset, full_vulgen=False):
     """
     Create tokenized datasets for training and testing.
@@ -527,10 +529,11 @@ def create_datasets(path_trainset, path_testset, full_vulgen=False):
     train['outputs'] = get_outpus(train, train_edits)
     test['inputs'] = get_inputs(test)
     test['outputs'] = get_outpus(test, test_edits)
-    train = train[:2000]
-    test = test[:200]
-    train = Dataset.from_pandas(train)
-    test= Dataset.from_pandas(test)
+    test = test[test['inputs'].str.len() + test['outputs'].str.len() <= 1500]  # Drop rows where 'inputs' length is larger than 1500
+    train = train[:5]
+    # test = test[:50]
+    # train = Dataset.from_pandas(train)
+    # test= Dataset.from_pandas(test)
     # tokenized_train = tokenize(train, tokenizer)
     # tokenized_test = tokenize(test, tokenizer)
     # plot_data_len(tokenized_train, tokenized_test)

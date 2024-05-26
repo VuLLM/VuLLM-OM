@@ -34,7 +34,7 @@ def main():
         return prompt
     train['prompt'] = train.apply(generate_prompt, axis=1) 
     test['prompt'] = test.apply(generate_prompt, axis=1)
-    max_length = 1024 # This was an appropriate max length for my dataset
+    max_length = 512 # This was an appropriate max length for my dataset
 
     def tokenize(dataset, tokenizer):
         result = tokenizer(
@@ -76,8 +76,11 @@ def main():
         print("decoded_preds[0]: ", decoded_preds[0])
         labels = np.where(labels != -100, labels, tokenizer.pad_token_id)
         decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
-
         decoded_preds, decoded_labels = postprocess_text(decoded_preds, decoded_labels)
+        print("decoded_labels: ", decoded_labels)
+        print("decoded_preds: ", decoded_preds)
+        decoded_preds[0] = decoded_preds[0].split("[/INST]")[1]
+        decoded_labels[0] = decoded_labels[0].split("[/INST]")[1]
         #ScareBleu
         results = metric.compute(predictions=decoded_preds, references=decoded_labels)
         result = {"sacreBleu": results["score"]}

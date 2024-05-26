@@ -1,4 +1,5 @@
-from transformers import (Seq2SeqTrainingArguments, DataCollatorForSeq2Seq)
+from transformers import TrainingArguments, DataCollatorForLanguageModeling
+from trl import SFTTrainer
 import torch
 import numpy as np
 import neptune
@@ -8,10 +9,11 @@ import os
 # import ..utils
 import sys
 sys.path.append('/sise/home/urizlo/VuLLM_One_Stage')
-from utils import Custom_trainer, Mistral_7B, Create_lora
+from utils import Mistral_7B, Create_lora_mistral
 from code_files.preprocess_data import Prepare_dataset_with_only_replace_mistral
-import argparse
+# import argparse
 from dotenv import load_dotenv
+import argparse
 
 
 def main(path_trainset, path_testset, full_vulgen, output_dir, learning_rate, per_device_train_batch_size, num_train_epochs, generation_num_beams):    
@@ -20,14 +22,18 @@ def main(path_trainset, path_testset, full_vulgen, output_dir, learning_rate, pe
     torch.backends.cuda.matmul.allow_tf32 = True
     torch.backends.cudnn.allow_tf32 = True
     
-    model, tokenizer = Mistral_7B.create_model_and_tokenizer(checkpoint)
+    model, tokenizer = Mistral_7B.create_model_and_tokenizer_one_GPU(checkpoint)
 
     # read and tokenized data
-    tokenized_train, tokenized_test = Prepare_dataset_with_only_replace_mistral.create_datasets(tokenizer, path_trainset, path_testset, full_vulgen=full_vulgen)
+    train, test = Prepare_dataset_with_only_replace_mistral.create_datasets(tokenizer, path_trainset, path_testset, full_vulgen=full_vulgen)
 
     # create lora adaptors
-    model = Create_lora.create_lora(model, rank=64, dropout=0.05)
+    model = Create_lora_mistral.create_lora(model, rank=16, dropout=0.05)
 
+    def generate_prompt(sample, return_response=True):
+        prompt = f"""<s>[INST] {sample['inputs']} [/INST] \n {sample['outputs']} </s>"""
+        return [prompt]
+    
     # config evaluation metrics
     metric = evaluate.load("sacrebleu")
     google_bleu = evaluate.load("google_bleu")
@@ -41,12 +47,19 @@ def main(path_trainset, path_testset, full_vulgen, output_dir, learning_rate, pe
         preds, labels = eval_preds
         if isinstance(preds, tuple):
             preds = preds[0]
+                # Convert preds to tensor if it's a NumPy array
+        if isinstance(preds, np.ndarray):
+            preds = torch.tensor(preds)
+        preds = torch.argmax(torch.softmax(preds, dim=-1), dim=-1)
         decoded_preds = tokenizer.batch_decode(preds, skip_special_tokens=True)
 
         labels = np.where(labels != -100, labels, tokenizer.pad_token_id)
         decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
 
         decoded_preds, decoded_labels = postprocess_text(decoded_preds, decoded_labels)
+        print("decoded_labels[0]: ", decoded_labels[0])
+        print("\n" + "\n")
+        print("decoded_preds[0]: ", decoded_preds[0])
         #ScareBleu
         results = metric.compute(predictions=decoded_preds, references=decoded_labels)
         result = {"sacreBleu": results["score"]}
@@ -60,54 +73,50 @@ def main(path_trainset, path_testset, full_vulgen, output_dir, learning_rate, pe
                 count += 1
         total_tokens = len(decoded_labels)
         accuracy = count / total_tokens
-        result['accuracy'] = accuracy
+        result['eval_accuracy'] = accuracy
         #Genaration length
         prediction_lens = [np.count_nonzero(pred != tokenizer.pad_token_id) for pred in preds]
         result["gen_len"] = np.mean(prediction_lens)
         result = {k: round(v, 4) for k, v in result.items()}
+        print("Computed metrics:", result)
         return result
+    
+    # def preprocess_logits_for_metrics(logits, labels):
+    #     if isinstance(logits, tuple):
+    #         logits = logits[0]
+    #     return logits.argmax(dim=-1)
 
-    # config env varibles
-    NEPTUNE_API_TOKEN = os.environ.get("NEPTUNE_API_TOKEN")
-    NEPTUNE_PROJECT = os.environ.get("NEPTUNE_PROJECT")
+    # # config env varibles
+    # NEPTUNE_API_TOKEN = os.environ.get("NEPTUNE_API_TOKEN")
+    # NEPTUNE_PROJECT = os.environ.get("NEPTUNE_PROJECT")
     os.environ["NEPTUNE_API_TOKEN"] = 'eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiI4Y2VlNTFhZC1hODJkLTQ4NzItOTE0MS0yZmNkNWY3ZWE0MTEifQ=='
     os.environ["NEPTUNE_PROJECT"] = 'zlotman/Localization-model'
     os.environ["NCCL_P2P_DISABLE"] = "1"
     os.environ["TOKENIZERS_PARALLELISM"] = "true"
 
-    # model configurations
-    model.config.max_length=810
-    model.config.use_cache=True
-    model.config.decoder_start_token_id = tokenizer.bos_token_id  # Replace tokenizer.cls_token_id with the appropriate token ID
-    model.config.pad_token_id = 50256
-    model.config.decoder.pad_token_id = model.config.decoder.eos_token_id
-    model.config.encoder.pad_token_id = model.config.encoder.eos_token_id
-    model.config.encoder.max_length = 810
-    model.config.decoder.max_length = 810
-
     # create trainer object
-    training_args = Seq2SeqTrainingArguments(
-        output_dir=output_dir,
+    training_args = TrainingArguments(
+        output_dir="saved_models/Mistral",
         evaluation_strategy="epoch",
-        learning_rate=learning_rate,
+        learning_rate=5e-5,
         adam_beta1=0.9,
         adam_beta2=0.95,
         adam_epsilon=1e-8,
-        per_device_train_batch_size=per_device_train_batch_size,
-        per_device_eval_batch_size=per_device_train_batch_size,
+        per_device_train_batch_size=1,
+        per_device_eval_batch_size=1,
         gradient_accumulation_steps=1,
         weight_decay=0.001,
-        num_train_epochs=num_train_epochs,
-        predict_with_generate=True,
+        num_train_epochs=4,
+        # predict_with_generate=True,
         bf16=True,
         tf32=True,
-        remove_unused_columns=False,
+        # remove_unused_columns=False,
         logging_dir="TensorBoard",
         do_train=True,
         do_eval=True,
         logging_strategy='epoch',
-        generation_max_length=810,
-        generation_num_beams=generation_num_beams,
+        # generation_max_length=810,
+        # generation_num_beams=1,
         dataloader_num_workers=4,
         warmup_steps=57000,
         # report_to="no",
@@ -115,19 +124,23 @@ def main(path_trainset, path_testset, full_vulgen, output_dir, learning_rate, pe
         save_strategy="epoch",
         save_total_limit=2,
         load_best_model_at_end=True,
-        metric_for_best_model="accuracy",
+        metric_for_best_model="eval_runtime",
         greater_is_better=True
     )
 
-    data_collator = DataCollatorForSeq2Seq(tokenizer=tokenizer, model=checkpoint)
-
-    trainer = Custom_trainer.CodeT5pTrainer(
+    data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
+    max_seq_length = 512
+    trainer = SFTTrainer(
         model=model,
         args=training_args,
-        train_dataset=tokenized_train,
-        eval_dataset=tokenized_test,
-        tokenizer=tokenizer,
+        dataset_batch_size=1,
+        train_dataset=train,
         data_collator=data_collator,
+        eval_dataset=test,
+        max_seq_length=max_seq_length,
+        tokenizer=tokenizer,
+        formatting_func=generate_prompt,
+        # preprocess_logits_for_metrics = preprocess_logits_for_metrics,
         compute_metrics=compute_metrics
     )
 
