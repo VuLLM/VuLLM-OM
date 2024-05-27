@@ -29,13 +29,15 @@ def main():
 
     # read and tokenized data
     train, test = Prepare_dataset_with_only_replace_only_encoder.create_datasets("Datasets/vulgen_train_with_diff_lines_spaces.csv", "Datasets/vulgen_test_with_diff_lines_spaces.csv", full_vulgen=True)
+    train['prompt'] = train['inputs'].apply(lambda x: f"""<s>[INST] {x} [/INST] \n {train['outputs']} </s>""")
+    test['prompt'] = test['inputs'].apply(lambda x: f"""<s>[INST] {x} [/INST] \n {test['outputs']} </s>""")
     train = Dataset.from_pandas(train)
     test= Dataset.from_pandas(test)
     max_seq_length = 1400
 
     # Function to filter out long samples
     def filter_long_samples(example):
-        inputs = tokenizer(example['inputs'], truncation=True, padding=False)
+        inputs = tokenizer(example['prompt'], truncation=True, padding=False)
         return len(inputs['input_ids']) <= max_seq_length
 
 # Apply the filter
@@ -79,7 +81,7 @@ def main():
 
         decoded_preds, decoded_labels = postprocess_text(decoded_preds, decoded_labels)
         for i in range(len(decoded_preds)):
-            if "[/INST]" in decoded_preds[i]:
+            if "[/INST]" in decoded_preds[i] and "[/INST]" in decoded_labels[i]:
                 decoded_preds[i] = decoded_preds[i].split("[/INST]")[1]
                 decoded_labels[i] = decoded_labels[i][0].split("[/INST]")[1]
                 gen_len_list.append(len(tokenizer.encode(decoded_preds[i])))

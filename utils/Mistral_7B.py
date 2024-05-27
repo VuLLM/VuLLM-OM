@@ -30,9 +30,9 @@ def create_model_and_tokenizer(checkpoint):
     return model, tokenizer
 
 def create_model_and_tokenizer_one_GPU(checkpoint):
-    tokenizer = AutoTokenizer.from_pretrained(checkpoint, padding_side="left")
+    tokenizer = AutoTokenizer.from_pretrained(checkpoint)
     tokenizer.pad_token = tokenizer.eos_token    
-    
+    tokenizer.padding_side = 'right'
     # tokenizer.deprecation_warnings["Asking-to-pad-a-fast-tokenizer"] = True
     model = MistralForCausalLM.from_pretrained(checkpoint,
                                             torch_dtype=torch.bfloat16,
