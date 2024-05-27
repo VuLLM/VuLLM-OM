@@ -1,37 +1,35 @@
 from transformers import TrainingArguments, DataCollatorForLanguageModeling
-from trl import SFTTrainer
+# from trl import SFTTrainer
 import torch
 import numpy as np
-import neptune
-# from accelerate import Accelerator
 import evaluate
 import os
-# import ..utils
 import sys
 sys.path.append('/sise/home/urizlo/VuLLM_One_Stage')
-from utils import Mistral_7B, Create_lora_mistral, Custom_SFTTrainer
+from utils import Nxcode_7B, Create_lora_starCoder, Custom_SFTTrainer
 from code_files.preprocess_data import Prepare_dataset_with_only_replace_only_encoder
 # import argparse
 from dotenv import load_dotenv
-import argparse
 from datasets import Dataset
 
 
-
-# def main(path_trainset, path_testset, full_vulgen, output_dir, learning_rate, per_device_train_batch_size, num_train_epochs, generation_num_beams):    
-def main():
-    checkpoint = "mistralai/Mistral-7B-v0.1"
+def main():    
+    # torch.cuda.set_device(0)
+    checkpoint = "NTQAI/Nxcode-CQ-7B-orpo"
     load_dotenv()
     torch.backends.cuda.matmul.allow_tf32 = True
     torch.backends.cudnn.allow_tf32 = True
+    max_seq_length = 1450
     
-    model, tokenizer = Mistral_7B.create_model_and_tokenizer_one_GPU(checkpoint)
+    model, tokenizer = Nxcode_7B.create_model_and_tokenizer_one_GPU(checkpoint)
 
     # read and tokenized data
-    train, test = Prepare_dataset_with_only_replace_only_encoder.create_datasets("Datasets/vulgen_train_with_diff_lines_spaces.csv", "Datasets/vulgen_test_with_diff_lines_spaces.csv", full_vulgen=True)
+    path_trainset = "Datasets/vulgen_train_with_diff_lines_spaces.csv"
+    path_testset = "Datasets/vulgen_test_with_diff_lines_spaces.csv"
+    full_vulgen = True
+    train, test = Prepare_dataset_with_only_replace_only_encoder.create_datasets(path_trainset, path_testset, full_vulgen=full_vulgen)
     train = Dataset.from_pandas(train)
     test= Dataset.from_pandas(test)
-    max_seq_length = 1400
 
     # Function to filter out long samples
     def filter_long_samples(example):
@@ -42,10 +40,10 @@ def main():
     train = train.filter(filter_long_samples)
     test = test.filter(filter_long_samples)
     # create lora adaptors
-    model = Create_lora_mistral.create_lora(model, rank=32, dropout=0.05)
+    model = Create_lora_starCoder.create_lora(model, rank=32, dropout=0.05)
 
     def generate_prompt(sample, return_response=True):
-        prompt = f"""<s>[INST] {sample['inputs']} [/INST] \n {sample['outputs']} </s>"""
+        prompt = f"""function {sample['inputs']} \n instruction \n {sample['outputs']}"""
         return [prompt]
     
     # config evaluation metrics
@@ -79,9 +77,9 @@ def main():
 
         decoded_preds, decoded_labels = postprocess_text(decoded_preds, decoded_labels)
         for i in range(len(decoded_preds)):
-            if "[/INST]" in decoded_preds[i]:
-                decoded_preds[i] = decoded_preds[i].split("[/INST]")[1]
-                decoded_labels[i] = decoded_labels[i][0].split("[/INST]")[1]
+            if "instruction" in decoded_preds[i]:
+                decoded_preds[i] = decoded_preds[i].split("instruction")[1]
+                decoded_labels[i] = decoded_labels[i][0].split("instruction")[1]
                 gen_len_list.append(len(tokenizer.encode(decoded_preds[i])))
 
         # print("decoded_labels[0]: ", decoded_labels[0])
@@ -128,9 +126,10 @@ def main():
     # Disable Neptune environment variables
     # os.environ.pop("NEPTUNE_API_TOKEN", None)
     # os.environ.pop("NEPTUNE_PROJECT", None)
+
     # create trainer object
     training_args = TrainingArguments(
-        output_dir="saved_models/Mistral",
+        output_dir="saved_models/Mxcode_7B",
         evaluation_strategy="epoch",
         learning_rate=1e-4,
         adam_beta1=0.9,
@@ -179,7 +178,8 @@ def main():
         # preprocess_logits_for_metrics = preprocess_logits_for_metrics,
         compute_metrics=compute_metrics
     )
-
+    # new_dataset = trainer.get_eval_dataloader().dataset.select([44])
+    # x = trainer.evaluate(new_dataset)
     trainer.train()
 
 if __name__ == "__main__":
@@ -193,5 +193,4 @@ if __name__ == "__main__":
     # parser.add_argument('--epochs', type=int, default=30, help='Number of training epochs')
     # parser.add_argument('--generation_num_beams', type=int, default=1, help='Number of beams for generation')
     # args = parser.parse_args()
-    # main(args.path_trainset, args.path_testset, args.full_vulgen ,args.output_dir, args.learning_rate, args.batch_size_per_device, args.epochs, args.generation_num_beams)
     main()

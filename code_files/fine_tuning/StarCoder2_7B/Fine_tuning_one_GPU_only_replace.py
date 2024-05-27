@@ -15,7 +15,7 @@ from datasets import Dataset
 
 def main():    
     # torch.cuda.set_device(0)
-    checkpoint = "bigcode/starcoder2-3b"
+    checkpoint = "bigcode/starcoder2-7b"
     load_dotenv()
     torch.backends.cuda.matmul.allow_tf32 = True
     torch.backends.cudnn.allow_tf32 = True
@@ -29,6 +29,16 @@ def main():
     train, test = Prepare_dataset_with_only_replace_only_encoder.create_datasets(path_trainset, path_testset, full_vulgen=full_vulgen)
     train = Dataset.from_pandas(train)
     test= Dataset.from_pandas(test)
+    max_seq_length = 1700
+
+    # Function to filter out long samples
+    def filter_long_samples(example):
+        inputs = tokenizer(example['inputs'], truncation=True, padding=False)
+        return len(inputs['input_ids']) <= max_seq_length
+
+# Apply the filter
+    train = train.filter(filter_long_samples)
+    test = test.filter(filter_long_samples)
     # create lora adaptors
     model = Create_lora_starCoder.create_lora(model, rank=64, dropout=0.05)
 
@@ -119,9 +129,9 @@ def main():
 
     # create trainer object
     training_args = TrainingArguments(
-        output_dir="saved_models/StarCoder",
+        output_dir="saved_models/StarCoder_7B",
         evaluation_strategy="epoch",
-        learning_rate=5e-5,
+        learning_rate=1e-4,
         adam_beta1=0.9,
         adam_beta2=0.95,
         adam_epsilon=1e-8,
@@ -155,7 +165,6 @@ def main():
     )
 
     data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
-    max_seq_length = 2048
     trainer = Custom_SFTTrainer.Custom_SFTTrainer(
         model=model,
         args=training_args,
