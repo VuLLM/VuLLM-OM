@@ -81,7 +81,7 @@ def main():
 
         decoded_preds, decoded_labels = postprocess_text(decoded_preds, decoded_labels)
         for i in range(len(decoded_preds)):
-            if "[/INST]" in decoded_preds[i] and "[/INST]" in decoded_labels[i]:
+            if "[/INST]" in decoded_preds[i] and "[/INST]" in decoded_labels[i][0]:
                 decoded_preds[i] = decoded_preds[i].split("[/INST]")[1]
                 decoded_labels[i] = decoded_labels[i][0].split("[/INST]")[1]
                 gen_len_list.append(len(tokenizer.encode(decoded_preds[i])))

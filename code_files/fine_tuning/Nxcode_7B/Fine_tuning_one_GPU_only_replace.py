@@ -28,8 +28,8 @@ def main():
     path_testset = "Datasets/vulgen_test_with_diff_lines_spaces.csv"
     full_vulgen = True
     train, test = Prepare_dataset_with_only_replace_only_encoder.create_datasets(path_trainset, path_testset, full_vulgen=full_vulgen)
-    train['prompt'] = train['inputs'].apply(lambda x: f"""<s>[INST] {x} [/INST] \n {train['outputs']} </s>""")
-    test['prompt'] = test['inputs'].apply(lambda x: f"""<s>[INST] {x} [/INST] \n {test['outputs']} </s>""")
+    train['prompt'] = train['inputs'].apply(lambda x: f"""function {x} \n instruction \n {train['outputs']}""")
+    test['prompt'] = test['inputs'].apply(lambda x: f"""function {x} \n instruction \n {test['outputs']}""")
     train = Dataset.from_pandas(train)
     test= Dataset.from_pandas(test)
     max_seq_length = 1400
