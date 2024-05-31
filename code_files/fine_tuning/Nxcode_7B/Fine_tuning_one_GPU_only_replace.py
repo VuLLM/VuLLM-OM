@@ -1,5 +1,5 @@
 from transformers import TrainingArguments, DataCollatorForLanguageModeling
-# from trl import SFTTrainer
+from trl import SFTTrainer, DataCollatorForCompletionOnlyLM
 import torch
 import numpy as np
 import evaluate
@@ -28,8 +28,8 @@ def main():
     path_testset = "Datasets/vulgen_test_with_diff_lines_spaces.csv"
     full_vulgen = True
     train, test = Prepare_dataset_with_only_replace_only_encoder.create_datasets(path_trainset, path_testset, full_vulgen=full_vulgen)
-    train['prompt'] = train['inputs'].apply(lambda x: f"""function {x} \n instruction \n {train['outputs']}""")
-    test['prompt'] = test['inputs'].apply(lambda x: f"""function {x} \n instruction \n {test['outputs']}""")
+    train['prompt'] = train.apply(lambda row: f"""function:\n{row['inputs']}\ninstruction:\n{row['outputs']}""")
+    test['prompt'] = test.apply(lambda row: f"""function:\n{row['inputs']}\ninstruction:\n{row['outputs']}""")
     train = Dataset.from_pandas(train)
     test= Dataset.from_pandas(test)
     max_seq_length = 1400
@@ -46,7 +46,7 @@ def main():
     model = Create_lora_starCoder.create_lora(model, rank=32, dropout=0.05)
 
     def generate_prompt(sample, return_response=True):
-        prompt = f"""function {sample['inputs']} \n instruction \n {sample['outputs']}"""
+        prompt = f"""function:\n{sample['inputs']}\ninstruction:\n{sample['outputs']}"""
         return [prompt]
     
     # config evaluation metrics
@@ -167,7 +167,9 @@ def main():
         greater_is_better=True
     )
 
-    data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
+    # data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
+    response_template = "instruction:"
+    data_collator = DataCollatorForCompletionOnlyLM(response_template, tokenizer=tokenizer)
     trainer = Custom_SFTTrainer.Custom_SFTTrainer(
         model=model,
         args=training_args,

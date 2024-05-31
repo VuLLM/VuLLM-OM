@@ -1,5 +1,5 @@
 from transformers import TrainingArguments, DataCollatorForLanguageModeling
-# from trl import SFTTrainer
+from trl import SFTTrainer, DataCollatorForCompletionOnlyLM
 import torch
 import numpy as np
 import evaluate
@@ -28,8 +28,8 @@ def main():
     path_testset = "Datasets/vulgen_test_with_diff_lines_spaces.csv"
     full_vulgen = True
     train, test = Prepare_dataset_with_only_replace_only_encoder.create_datasets(path_trainset, path_testset, full_vulgen=full_vulgen)
-    train['prompt'] = train['inputs'].apply(lambda x: f"""function {x} \n instruction \n {train['outputs']}""")
-    test['prompt'] = test['inputs'].apply(lambda x: f"""function {x} \n instruction \n {test['outputs']} </s>""")
+    train['prompt'] = train.apply(lambda row: f"""Function:\n{row['inputs']}\nInstruction:\n{row['outputs']}""")
+    test['prompt'] = test.apply(lambda row: f"""Function:\n{row['inputs']}\nInstruction:\n{row['outputs']}""")
     train = Dataset.from_pandas(train)
     test= Dataset.from_pandas(test)
     max_seq_length = 1400
@@ -79,11 +79,12 @@ def main():
         decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
 
         decoded_preds, decoded_labels = postprocess_text(decoded_preds, decoded_labels)
-        for i in range(len(decoded_preds)):
-            if "instruction" in decoded_preds[i] and "instruction" in decoded_labels[i][0]:
-                decoded_preds[i] = decoded_preds[i].split("instruction")[1]
-                decoded_labels[i] = decoded_labels[i][0].split("instruction")[1]
-                gen_len_list.append(len(tokenizer.encode(decoded_preds[i])))
+        # for i in range(len(decoded_preds)):
+        #     if "Instruction" in decoded_preds[i] and "Instruction" in decoded_labels[i][0]:
+        #         decoded_preds[i] = decoded_preds[i].split("Instruction")[1]
+        #         decoded_labels[i] = decoded_labels[i][0].split("Instruction")[1]
+        #         gen_len_list.append(len(tokenizer.encode(decoded_preds[i])))
+        gen_len_list += [len(tokenizer.encode(pred)) for pred in decoded_preds]
 
         # print("decoded_labels[0]: ", decoded_labels[0])
         # print("\n" + "\n")
@@ -132,7 +133,7 @@ def main():
 
     # create trainer object
     training_args = TrainingArguments(
-        output_dir="saved_models/Check",
+        output_dir="saved_models/DeepSeek_7B",
         evaluation_strategy="epoch",
         learning_rate=1e-4,
         adam_beta1=0.9,
@@ -167,7 +168,9 @@ def main():
         greater_is_better=True
     )
 
-    data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
+    # data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
+    response_template = "instruction:"
+    data_collator = DataCollatorForCompletionOnlyLM(response_template, tokenizer=tokenizer)
     trainer = Custom_SFTTrainer.Custom_SFTTrainer(
         model=model,
         args=training_args,

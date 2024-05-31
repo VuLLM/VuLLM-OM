@@ -1,34 +1,39 @@
 from transformers import TrainingArguments, DataCollatorForLanguageModeling
-# from trl import SFTTrainer
+from trl import SFTTrainer, DataCollatorForCompletionOnlyLM
 import torch
 import numpy as np
+import neptune
+# from accelerate import Accelerator
 import evaluate
 import os
+# import ..utils
 import sys
 sys.path.append('/sise/home/urizlo/VuLLM_One_Stage')
-from utils import StarCoder2_7B, Create_lora_starCoder, Custom_SFTTrainer
+from utils import Llama_3_8B, Create_lora_Llama_3_8B, Custom_SFTTrainer
 from code_files.preprocess_data import Prepare_dataset_with_only_replace_only_encoder
 # import argparse
 from dotenv import load_dotenv
+import argparse
 from datasets import Dataset
 
 
-def main():    
-    # torch.cuda.set_device(0)
-    checkpoint = "bigcode/starcoder2-7b"
+
+# def main(path_trainset, path_testset, full_vulgen, output_dir, learning_rate, per_device_train_batch_size, num_train_epochs, generation_num_beams):    
+def main():
+    checkpoint = "meta-llama/Meta-Llama-3-8B"
     load_dotenv()
     torch.backends.cuda.matmul.allow_tf32 = True
     torch.backends.cudnn.allow_tf32 = True
     
-    model, tokenizer = StarCoder2_7B.create_model_and_tokenizer_one_GPU(checkpoint)
+    model, tokenizer = Llama_3_8B.create_model_and_tokenizer_one_GPU(checkpoint)
 
     # read and tokenized data
-    path_trainset = "Datasets/vulgen_train_with_diff_lines_spaces.csv"
-    path_testset = "Datasets/vulgen_test_with_diff_lines_spaces.csv"
-    full_vulgen = True
-    train, test = Prepare_dataset_with_only_replace_only_encoder.create_datasets(path_trainset, path_testset, full_vulgen=full_vulgen)
-    train['prompt'] = train.apply(lambda row: f"""Function:\n{row['inputs']}\nInstruction:\n{row['outputs']}""")
-    test['prompt'] = test.apply(lambda row: f"""Function:\n{row['inputs']}\nInstruction:\n{row['outputs']}""")
+    train, test = Prepare_dataset_with_only_replace_only_encoder.create_datasets("Datasets/vulgen_train_with_diff_lines_spaces.csv", "Datasets/vulgen_test_with_diff_lines_spaces.csv", full_vulgen=True)
+    # {"prompt": "<start_header_id>system<end_header_id>\nYou are a helpful assistant.<eot_id><start_header_id>user<end_header_id>\nWhat is the capital of France?<eot_id><start_header_id>assistant<end_header_id>", "completion": " Paris is the capital of France.<eot_id>"}
+    train['prompt'] = train.apply(lambda row: f"""Create instruction to inject vulnerability to this function
+### Function\n{row['inputs']}\n### Instruction\n{row['outputs']}""", axis=1)
+    test['prompt'] = test.apply(lambda row: f"""Create instruction to inject vulnerability to this function
+### Function\n{row['inputs']}\n### Instruction\n{row['outputs']}""", axis=1)
     train = Dataset.from_pandas(train)
     test= Dataset.from_pandas(test)
     max_seq_length = 1400
@@ -38,16 +43,16 @@ def main():
         inputs = tokenizer(example['prompt'], truncation=True, padding=False)
         return len(inputs['input_ids']) <= max_seq_length
 
-# Apply the filter
+    # Apply the filter
     train = train.filter(filter_long_samples)
     test = test.filter(filter_long_samples)
     # create lora adaptors
-    model = Create_lora_starCoder.create_lora(model, rank=64, dropout=0.05)
+    model = Create_lora_Llama_3_8B.create_lora(model, rank=32, dropout=0.05)
 
     def generate_prompt(sample, return_response=True):
-        prompt = f"""function {sample['inputs']} \n instruction \n {sample['outputs']}"""
-        return [prompt]
-    
+        prompt = sample['prompt']
+        return prompt
+
     # config evaluation metrics
     metric = evaluate.load("sacrebleu")
     google_bleu = evaluate.load("google_bleu")
@@ -78,12 +83,12 @@ def main():
         decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
 
         decoded_preds, decoded_labels = postprocess_text(decoded_preds, decoded_labels)
-        for i in range(len(decoded_preds)):
-            if "instruction" in decoded_preds[i]:
-                decoded_preds[i] = decoded_preds[i].split("instruction")[1]
-                decoded_labels[i] = decoded_labels[i][0].split("instruction")[1]
-                gen_len_list.append(len(tokenizer.encode(decoded_preds[i])))
-
+        # for i in range(len(decoded_preds)):
+        #     if "Instruction" in decoded_preds[i] and "Instruction" in decoded_labels[i][0]:
+        #         decoded_preds[i] = decoded_preds[i].split("Instruction")[1]
+        #         decoded_labels[i] = decoded_labels[i][0].split("Instruction")[1]
+        #         gen_len_list.append(len(tokenizer.encode(decoded_preds[i])))
+        gen_len_list += [len(tokenizer.encode(pred)) for pred in decoded_preds]
         # print("decoded_labels[0]: ", decoded_labels[0])
         # print("\n" + "\n")
         # print("decoded_preds[0]: ", decoded_preds[0])
@@ -121,19 +126,18 @@ def main():
     # # config env varibles
     # NEPTUNE_API_TOKEN = os.environ.get("NEPTUNE_API_TOKEN")
     # NEPTUNE_PROJECT = os.environ.get("NEPTUNE_PROJECT")
-    os.environ["NEPTUNE_API_TOKEN"] = 'eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiI4Y2VlNTFhZC1hODJkLTQ4NzItOTE0MS0yZmNkNWY3ZWE0MTEifQ=='
-    os.environ["NEPTUNE_PROJECT"] = 'zlotman/Localization-model'
+    # os.environ["NEPTUNE_API_TOKEN"] = 'eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiI4Y2VlNTFhZC1hODJkLTQ4NzItOTE0MS0yZmNkNWY3ZWE0MTEifQ=='
+    # os.environ["NEPTUNE_PROJECT"] = 'zlotman/Localization-model'
     os.environ["NCCL_P2P_DISABLE"] = "1"
     os.environ["TOKENIZERS_PARALLELISM"] = "true"
     # Disable Neptune environment variables
-    # os.environ.pop("NEPTUNE_API_TOKEN", None)
-    # os.environ.pop("NEPTUNE_PROJECT", None)
-
+    os.environ.pop("NEPTUNE_API_TOKEN", None)
+    os.environ.pop("NEPTUNE_PROJECT", None)
     # create trainer object
     training_args = TrainingArguments(
-        output_dir="saved_models/StarCoder_7B",
+        output_dir="saved_models/Llama_3_8B",
         evaluation_strategy="epoch",
-        learning_rate=1e-4,
+        learning_rate=8e-5,
         adam_beta1=0.9,
         adam_beta2=0.95,
         adam_epsilon=1e-8,
@@ -157,7 +161,7 @@ def main():
         # generation_num_beams=1,
         dataloader_num_workers=6,
         # warmup_steps=57000,
-        report_to="neptune",
+        report_to="none",
         lr_scheduler_type='linear',
         save_strategy="epoch",
         save_total_limit=2,
@@ -166,7 +170,10 @@ def main():
         greater_is_better=True
     )
 
-    data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
+    # data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
+    response_template = "### Instruction"
+    data_collator = DataCollatorForCompletionOnlyLM(response_template, tokenizer=tokenizer)
+    #DataCollatorForCompletionOnlyLM
     trainer = Custom_SFTTrainer.Custom_SFTTrainer(
         model=model,
         args=training_args,
@@ -180,8 +187,7 @@ def main():
         # preprocess_logits_for_metrics = preprocess_logits_for_metrics,
         compute_metrics=compute_metrics
     )
-    # new_dataset = trainer.get_eval_dataloader().dataset.select([44])
-    # x = trainer.evaluate(new_dataset)
+
     trainer.train()
 
 if __name__ == "__main__":
@@ -195,4 +201,5 @@ if __name__ == "__main__":
     # parser.add_argument('--epochs', type=int, default=30, help='Number of training epochs')
     # parser.add_argument('--generation_num_beams', type=int, default=1, help='Number of beams for generation')
     # args = parser.parse_args()
+    # main(args.path_trainset, args.path_testset, args.full_vulgen ,args.output_dir, args.learning_rate, args.batch_size_per_device, args.epochs, args.generation_num_beams)
     main()

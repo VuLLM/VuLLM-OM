@@ -29,8 +29,9 @@ def main():
 
     # read and tokenized data
     train, test = Prepare_dataset_with_only_replace_only_encoder.create_datasets("Datasets/vulgen_train_with_diff_lines_spaces.csv", "Datasets/vulgen_test_with_diff_lines_spaces.csv", full_vulgen=True)
-    train['prompt'] = train['inputs'].apply(lambda x: f"""<s>[INST] {x} [/INST] \n {train['outputs']} </s>""")
-    test['prompt'] = test['inputs'].apply(lambda x: f"""<s>[INST] {x} [/INST] \n {test['outputs']} </s>""")
+    train['prompt'] = train.apply(lambda row: f"""<s>[INST] {row['inputs']} [/INST] \n {row['outputs']} </s>""")
+    test['prompt'] = test.apply(lambda row: f"""<s>[INST] {row['inputs']} [/INST] \n {row['outputs']} </s>""")
+    
     train = Dataset.from_pandas(train)
     test= Dataset.from_pandas(test)
     max_seq_length = 1400
