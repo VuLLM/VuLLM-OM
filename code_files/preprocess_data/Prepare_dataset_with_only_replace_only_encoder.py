@@ -294,13 +294,13 @@ def get_outpus(df, all_edits):
                 key = key[: -1]
             if not key[0] == "A":
                 if value == "EmptyLine":
-                    x += "<s>" + "\n" + key + "\n"
+                    x += "<N>" + "\n" + key + "\n"
                     x += value + "\n"
                 else:
-                    x += "<s>" + "\n" + key + "\n"
+                    x += "<N>" + "\n" + key + "\n"
                     x += value
             else:
-                x += "<s>" + "\n" + key[2:] + "\n" + key[2:] +"\n" + value + "\n"
+                x += "<N>" + "\n" + key[2:] + "\n" + key[2:] +"\n" + value + "\n"
         x = x[:-1]
         outputs.append(x)
     return outputs
@@ -530,8 +530,8 @@ def create_datasets(path_trainset, path_testset, full_vulgen=False):
     test['inputs'] = get_inputs(test)
     test['outputs'] = get_outpus(test, test_edits)
     # test = test[test['inputs'].str.len() + test['outputs'].str.len() <= 1500]  # Drop rows where 'inputs' length is larger than 1500
-    # train = train[:50]
-    # test = test[:50]
+    train = train[:1]
+    test = test[:50]
     # train = Dataset.from_pandas(train)
     # test= Dataset.from_pandas(test)
     # tokenized_train = tokenize(train, tokenizer)

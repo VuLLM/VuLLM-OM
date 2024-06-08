@@ -1,4 +1,4 @@
-from transformers import TrainingArguments, DataCollatorForLanguageModeling
+from transformers import TrainingArguments, DataCollatorForLanguageModeling, Seq2SeqTrainingArguments
 from trl import SFTTrainer, DataCollatorForCompletionOnlyLM
 import torch
 import numpy as np
@@ -14,26 +14,26 @@ from datasets import Dataset
 
 
 def main():    
-    # torch.cuda.set_device(0)
+    torch.cuda.set_device(0)
     checkpoint = "deepseek-ai/deepseek-coder-6.7b-base"
     load_dotenv()
     torch.backends.cuda.matmul.allow_tf32 = True
     torch.backends.cudnn.allow_tf32 = True
-    max_seq_length = 1500
+    max_seq_length = 1400
     
     model, tokenizer = DeepSeek_7B.create_model_and_tokenizer_one_GPU(checkpoint)
-
+    end_of_text_token = '<｜end▁of▁sentence｜>'
     # read and tokenized data
     path_trainset = "Datasets/vulgen_train_with_diff_lines_spaces.csv"
     path_testset = "Datasets/vulgen_test_with_diff_lines_spaces.csv"
     full_vulgen = True
     train, test = Prepare_dataset_with_only_replace_only_encoder.create_datasets(path_trainset, path_testset, full_vulgen=full_vulgen)
-    train['prompt'] = train.apply(lambda row: f"""Function:\n{row['inputs']}\nInstruction:\n{row['outputs']}""")
-    test['prompt'] = test.apply(lambda row: f"""Function:\n{row['inputs']}\nInstruction:\n{row['outputs']}""")
+    train['prompt'] = train.apply(lambda row: f"""Function:\n{row['inputs']}\nInstruction:\n{row['outputs']}{end_of_text_token}""", axis=1)
+    test['prompt'] = test.apply(lambda row: f"""Function:\n{row['inputs']}\nInstruction:\n{row['outputs']}{end_of_text_token}""", axis=1)
     train = Dataset.from_pandas(train)
     test= Dataset.from_pandas(test)
     max_seq_length = 1400
-
+    
     # Function to filter out long samples
     def filter_long_samples(example):
         inputs = tokenizer(example['prompt'], truncation=True, padding=False)
@@ -46,8 +46,8 @@ def main():
     model = Create_lora_starCoder.create_lora(model, rank=64, dropout=0.05)
 
     def generate_prompt(sample, return_response=True):
-        prompt = f"""function {sample['inputs']} \n instruction \n {sample['outputs']}"""
-        return [prompt]
+        prompt = sample['prompt']
+        return prompt
     
     # config evaluation metrics
     metric = evaluate.load("sacrebleu")
@@ -68,7 +68,6 @@ def main():
         # Convert preds to tensor if it's a NumPy array
         if isinstance(preds, np.ndarray):
             preds = torch.tensor(preds)
-        preds = torch.argmax(torch.softmax(preds, dim=-1), dim=-1)
         decoded_preds = tokenizer.batch_decode(preds, skip_special_tokens=True)
 
         # Ensure labels are in numpy array format
@@ -79,12 +78,13 @@ def main():
         decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
 
         decoded_preds, decoded_labels = postprocess_text(decoded_preds, decoded_labels)
+        decoded_labels = decoded_labels[0]
         # for i in range(len(decoded_preds)):
         #     if "Instruction" in decoded_preds[i] and "Instruction" in decoded_labels[i][0]:
         #         decoded_preds[i] = decoded_preds[i].split("Instruction")[1]
         #         decoded_labels[i] = decoded_labels[i][0].split("Instruction")[1]
         #         gen_len_list.append(len(tokenizer.encode(decoded_preds[i])))
-        gen_len_list += [len(tokenizer.encode(pred)) for pred in decoded_preds]
+        gen_len_list.append([len(tokenizer.encode(pred)) for pred in decoded_preds][0])
 
         # print("decoded_labels[0]: ", decoded_labels[0])
         # print("\n" + "\n")
@@ -123,19 +123,19 @@ def main():
     # # config env varibles
     # NEPTUNE_API_TOKEN = os.environ.get("NEPTUNE_API_TOKEN")
     # NEPTUNE_PROJECT = os.environ.get("NEPTUNE_PROJECT")
-    os.environ["NEPTUNE_API_TOKEN"] = 'eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiI4Y2VlNTFhZC1hODJkLTQ4NzItOTE0MS0yZmNkNWY3ZWE0MTEifQ=='
-    os.environ["NEPTUNE_PROJECT"] = 'zlotman/Localization-model'
+    # os.environ["NEPTUNE_API_TOKEN"] = 'eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiI4Y2VlNTFhZC1hODJkLTQ4NzItOTE0MS0yZmNkNWY3ZWE0MTEifQ=='
+    # os.environ["NEPTUNE_PROJECT"] = 'zlotman/Localization-model'
     os.environ["NCCL_P2P_DISABLE"] = "1"
     os.environ["TOKENIZERS_PARALLELISM"] = "true"
     # Disable Neptune environment variables
-    # os.environ.pop("NEPTUNE_API_TOKEN", None)
-    # os.environ.pop("NEPTUNE_PROJECT", None)
+    os.environ.pop("NEPTUNE_API_TOKEN", None)
+    os.environ.pop("NEPTUNE_PROJECT", None)
 
     # create trainer object
-    training_args = TrainingArguments(
+    training_args = Seq2SeqTrainingArguments(
         output_dir="saved_models/DeepSeek_7B",
         evaluation_strategy="epoch",
-        learning_rate=1e-4,
+        learning_rate=5e-4,
         adam_beta1=0.9,
         adam_beta2=0.95,
         adam_epsilon=1e-8,
@@ -144,7 +144,7 @@ def main():
         gradient_accumulation_steps=1,
         weight_decay=0.001,
         num_train_epochs=30,
-        # predict_with_generate=True,
+        predict_with_generate=True,
         bf16=True,
         tf32=True,
         bf16_full_eval=True,
@@ -155,11 +155,11 @@ def main():
         do_train=True,
         do_eval=True,
         logging_strategy='epoch',
-        # generation_max_length=810,
+        generation_max_length=810,
         # generation_num_beams=1,
-        dataloader_num_workers=6,
+        dataloader_num_workers=4,
         # warmup_steps=57000,
-        report_to="neptune",
+        report_to="none",
         lr_scheduler_type='linear',
         save_strategy="epoch",
         save_total_limit=2,
@@ -169,8 +169,8 @@ def main():
     )
 
     # data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
-    response_template = "instruction:"
-    data_collator = DataCollatorForCompletionOnlyLM(response_template, tokenizer=tokenizer)
+    response_template = "Instruction:\n"
+    data_collator = DataCollatorForCompletionOnlyLM(response_template=response_template, tokenizer=tokenizer, mlm=False)
     trainer = Custom_SFTTrainer.Custom_SFTTrainer(
         model=model,
         args=training_args,

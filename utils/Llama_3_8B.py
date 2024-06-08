@@ -16,7 +16,7 @@ def create_model_and_tokenizer(checkpoint):
     model = LlamaForCausalLM.from_pretrained(checkpoint,
                                             torch_dtype=torch.bfloat16,
                                             device_map=device_map)
-
+    model.generate()
     # Add dropout to model layers
     # model.encoder.drop = nn.Dropout(p=0.05, inplace=False)
     # for i in range(20):

@@ -2,11 +2,14 @@ from transformers import TrainingArguments, DataCollatorForLanguageModeling
 from trl import SFTTrainer, DataCollatorForCompletionOnlyLM
 import torch
 import numpy as np
+import neptune
+# from accelerate import Accelerator
 import evaluate
 import os
+# import ..utils
 import sys
 sys.path.append('/sise/home/urizlo/VuLLM_One_Stage')
-from utils import Nxcode_7B, Create_lora_starCoder, Custom_SFTTrainer
+from utils import DeepSeek_7B, Create_lora_starCoder, Custom_SFTTrainer
 from code_files.preprocess_data import Prepare_dataset_with_only_replace_only_encoder
 # import argparse
 from dotenv import load_dotenv
@@ -14,26 +17,26 @@ from datasets import Dataset
 
 
 def main():    
-    torch.cuda.set_device(0)
-    checkpoint = "NTQAI/Nxcode-CQ-7B-orpo"
+    checkpoint = "deepseek-ai/deepseek-coder-6.7b-base"
     load_dotenv()
     torch.backends.cuda.matmul.allow_tf32 = True
     torch.backends.cudnn.allow_tf32 = True
-    max_seq_length = 1450
-    
-    model, tokenizer = Nxcode_7B.create_model_and_tokenizer_one_GPU(checkpoint)
-    eos = tokenizer.eos_token
+
+    model, tokenizer = DeepSeek_7B.create_model_and_tokenizer(checkpoint)
+
     # read and tokenized data
     path_trainset = "Datasets/vulgen_train_with_diff_lines_spaces.csv"
     path_testset = "Datasets/vulgen_test_with_diff_lines_spaces.csv"
     full_vulgen = True
     train, test = Prepare_dataset_with_only_replace_only_encoder.create_datasets(path_trainset, path_testset, full_vulgen=full_vulgen)
-    train['prompt'] = train.apply(lambda row: f"""function:\n{row['inputs']}\nInstruction:\n{row['outputs']}{eos}""", axis=1)
-    test['prompt'] = test.apply(lambda row: f"""function:\n{row['inputs']}\nInstruction:\n{row['outputs']}{eos}""", axis=1)
+    train['prompt'] = train.apply(lambda row: f"""Function:\n{row['inputs']}\nInstruction:\n{row['outputs']}""", axis=1)
+    test['prompt'] = test.apply(lambda row: f"""Function:\n{row['inputs']}\nInstruction:\n{row['outputs']}""", axis=1)
     train = Dataset.from_pandas(train)
     test= Dataset.from_pandas(test)
-    max_seq_length = 1400
-
+    max_seq_length = 1700
+    # create lora adaptors
+    model = Create_lora_starCoder.create_lora(model, rank=32, dropout=0.05)
+    
     # Function to filter out long samples
     def filter_long_samples(example):
         inputs = tokenizer(example['prompt'], truncation=True, padding=False)
@@ -42,11 +45,10 @@ def main():
 # Apply the filter
     train = train.filter(filter_long_samples)
     test = test.filter(filter_long_samples)
-    # create lora adaptors
-    model = Create_lora_starCoder.create_lora(model, rank=32, dropout=0.05)
-
+    
     def generate_prompt(sample, return_response=True):
-        return sample['prompt']
+        prompt = sample['prompt']
+        return prompt
     
     # config evaluation metrics
     metric = evaluate.load("sacrebleu")
@@ -67,6 +69,7 @@ def main():
         # Convert preds to tensor if it's a NumPy array
         if isinstance(preds, np.ndarray):
             preds = torch.tensor(preds)
+        preds = torch.argmax(torch.softmax(preds, dim=-1), dim=-1)
         decoded_preds = tokenizer.batch_decode(preds, skip_special_tokens=True)
 
         # Ensure labels are in numpy array format
@@ -77,13 +80,12 @@ def main():
         decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
 
         decoded_preds, decoded_labels = postprocess_text(decoded_preds, decoded_labels)
-        decoded_labels = decoded_labels[0]
         # for i in range(len(decoded_preds)):
         #     if "Instruction" in decoded_preds[i] and "Instruction" in decoded_labels[i][0]:
         #         decoded_preds[i] = decoded_preds[i].split("Instruction")[1]
         #         decoded_labels[i] = decoded_labels[i][0].split("Instruction")[1]
         #         gen_len_list.append(len(tokenizer.encode(decoded_preds[i])))
-        gen_len_list.append([len(tokenizer.encode(pred)) for pred in decoded_preds][0])
+        gen_len_list += [len(tokenizer.encode(pred)) for pred in decoded_preds]
 
         # print("decoded_labels[0]: ", decoded_labels[0])
         # print("\n" + "\n")
@@ -122,19 +124,19 @@ def main():
     # # config env varibles
     # NEPTUNE_API_TOKEN = os.environ.get("NEPTUNE_API_TOKEN")
     # NEPTUNE_PROJECT = os.environ.get("NEPTUNE_PROJECT")
-    os.environ["NEPTUNE_API_TOKEN"] = 'eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiI4Y2VlNTFhZC1hODJkLTQ4NzItOTE0MS0yZmNkNWY3ZWE0MTEifQ=='
-    os.environ["NEPTUNE_PROJECT"] = 'zlotman/Localization-model'
+    # os.environ["NEPTUNE_API_TOKEN"] = 'eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiI4Y2VlNTFhZC1hODJkLTQ4NzItOTE0MS0yZmNkNWY3ZWE0MTEifQ=='
+    # os.environ["NEPTUNE_PROJECT"] = 'zlotman/Localization-model'
     os.environ["NCCL_P2P_DISABLE"] = "1"
     os.environ["TOKENIZERS_PARALLELISM"] = "true"
     # Disable Neptune environment variables
-    # os.environ.pop("NEPTUNE_API_TOKEN", None)
-    # os.environ.pop("NEPTUNE_PROJECT", None)
+    os.environ.pop("NEPTUNE_API_TOKEN", None)
+    os.environ.pop("NEPTUNE_PROJECT", None)
 
     # create trainer object
     training_args = TrainingArguments(
-        output_dir="saved_models/Mxcode_7B",
+        output_dir="saved_models/DeepSeek_7B",
         evaluation_strategy="epoch",
-        learning_rate=1e-4,
+        learning_rate=8e-5,
         adam_beta1=0.9,
         adam_beta2=0.95,
         adam_epsilon=1e-8,
@@ -142,15 +144,12 @@ def main():
         per_device_eval_batch_size=1,
         gradient_accumulation_steps=1,
         weight_decay=0.001,
-        num_train_epochs=30,
+        num_train_epochs=4,
         # predict_with_generate=True,
         bf16=True,
         tf32=True,
-        bf16_full_eval=True,
-        eval_accumulation_steps=1,
-        label_names = ["labels"],
         # remove_unused_columns=False,
-        # logging_dir="TensorBoard",
+        logging_dir="TensorBoard",
         do_train=True,
         do_eval=True,
         logging_strategy='epoch',
@@ -158,17 +157,17 @@ def main():
         # generation_num_beams=1,
         dataloader_num_workers=4,
         # warmup_steps=57000,
-        report_to="neptune",
+        report_to="none",
         lr_scheduler_type='linear',
         save_strategy="epoch",
         save_total_limit=2,
         load_best_model_at_end=True,
-        metric_for_best_model="eval_accuracy",
+        metric_for_best_model="eval_runtime",
         greater_is_better=True
     )
 
     # data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
-    response_template = "Instruction:\n"
+    response_template = "Instruction:"
     data_collator = DataCollatorForCompletionOnlyLM(response_template, tokenizer=tokenizer)
     trainer = Custom_SFTTrainer.Custom_SFTTrainer(
         model=model,
@@ -187,14 +186,7 @@ def main():
     trainer.train()
 
 if __name__ == "__main__":
-    # parser = argparse.ArgumentParser(description='Train a model with specific command line arguments.')
-    # parser.add_argument('--path_trainset', type=str, default='Dataset_VulGen/vulgen_train_with_diff_lines_spaces.csv', help='Path to trainset csv file')
-    # parser.add_argument('--path_testset', type=str, default='Dataset_VulGen/vulgen_train_with_diff_lines_spaces.csv', help='Path to testset csv file')
-    # parser.add_argument('--full_vulgen', type=bool, default=False, help='Is trainset and test are from vulgen dataset?')
-    # parser.add_argument('--output_dir', type=str, default='saved_models', help='Output directory for the saved model')
-    # parser.add_argument('--learning_rate', type=float, default=5e-5, help='Learning rate for training')
-    # parser.add_argument('--batch_size_per_device', type=int, default=1, help='Batch size per device')
-    # parser.add_argument('--epochs', type=int, default=30, help='Number of training epochs')
-    # parser.add_argument('--generation_num_beams', type=int, default=1, help='Number of beams for generation')
-    # args = parser.parse_args()
     main()
+    
+    
+# command = "NCCL_P2P_DISABLE='1' OMP_NUM_THREADS='1' accelerate launch --config_file accelerate_config_files/deepspeed_stage2.yaml code_files/fine_tuning/DeepSeek_coder_6.7B/multi_gpus.py"

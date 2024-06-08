@@ -83,12 +83,11 @@ def main():
         decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
 
         decoded_preds, decoded_labels = postprocess_text(decoded_preds, decoded_labels)
-        # for i in range(len(decoded_preds)):
-        #     if "Instruction" in decoded_preds[i] and "Instruction" in decoded_labels[i][0]:
-        #         decoded_preds[i] = decoded_preds[i].split("Instruction")[1]
-        #         decoded_labels[i] = decoded_labels[i][0].split("Instruction")[1]
-        #         gen_len_list.append(len(tokenizer.encode(decoded_preds[i])))
-        gen_len_list += [len(tokenizer.encode(pred)) for pred in decoded_preds]
+        for i in range(len(decoded_preds)):
+            if "Instruction" in decoded_preds[i]:
+                decoded_preds[i] = decoded_preds[i].split("Instruction")[1]
+                # decoded_labels[i] = decoded_labels[i][0].split("Instruction")[1]
+                gen_len_list.append(len(tokenizer.encode(decoded_preds[i])))
         # print("decoded_labels[0]: ", decoded_labels[0])
         # print("\n" + "\n")
         # print("decoded_preds[0]: ", decoded_preds[0])

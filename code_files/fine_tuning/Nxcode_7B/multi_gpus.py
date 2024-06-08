@@ -2,8 +2,11 @@ from transformers import TrainingArguments, DataCollatorForLanguageModeling
 from trl import SFTTrainer, DataCollatorForCompletionOnlyLM
 import torch
 import numpy as np
+import neptune
+# from accelerate import Accelerator
 import evaluate
 import os
+# import ..utils
 import sys
 sys.path.append('/sise/home/urizlo/VuLLM_One_Stage')
 from utils import Nxcode_7B, Create_lora_starCoder, Custom_SFTTrainer
@@ -14,14 +17,12 @@ from datasets import Dataset
 
 
 def main():    
-    torch.cuda.set_device(0)
     checkpoint = "NTQAI/Nxcode-CQ-7B-orpo"
-    load_dotenv()
     torch.backends.cuda.matmul.allow_tf32 = True
     torch.backends.cudnn.allow_tf32 = True
-    max_seq_length = 1450
+    max_seq_length = 1550
     
-    model, tokenizer = Nxcode_7B.create_model_and_tokenizer_one_GPU(checkpoint)
+    model, tokenizer = Nxcode_7B.create_model_and_tokenizer(checkpoint)
     eos = tokenizer.eos_token
     # read and tokenized data
     path_trainset = "Datasets/vulgen_train_with_diff_lines_spaces.csv"
@@ -32,7 +33,6 @@ def main():
     test['prompt'] = test.apply(lambda row: f"""function:\n{row['inputs']}\nInstruction:\n{row['outputs']}{eos}""", axis=1)
     train = Dataset.from_pandas(train)
     test= Dataset.from_pandas(test)
-    max_seq_length = 1400
 
     # Function to filter out long samples
     def filter_long_samples(example):
@@ -78,16 +78,7 @@ def main():
 
         decoded_preds, decoded_labels = postprocess_text(decoded_preds, decoded_labels)
         decoded_labels = decoded_labels[0]
-        # for i in range(len(decoded_preds)):
-        #     if "Instruction" in decoded_preds[i] and "Instruction" in decoded_labels[i][0]:
-        #         decoded_preds[i] = decoded_preds[i].split("Instruction")[1]
-        #         decoded_labels[i] = decoded_labels[i][0].split("Instruction")[1]
-        #         gen_len_list.append(len(tokenizer.encode(decoded_preds[i])))
         gen_len_list.append([len(tokenizer.encode(pred)) for pred in decoded_preds][0])
-
-        # print("decoded_labels[0]: ", decoded_labels[0])
-        # print("\n" + "\n")
-        # print("decoded_preds[0]: ", decoded_preds[0])
 
         # SacreBleu
         results = metric.compute(predictions=decoded_preds, references=decoded_labels)
@@ -109,15 +100,9 @@ def main():
         # Generation length
         if gen_len_list:
             result["gen_len"] = round(np.mean(gen_len_list), 4)
-
+            
         result = {k: round(v, 4) for k, v in result.items()}
-        # print("Computed metrics:", result)
         return result
-    
-    # def preprocess_logits_for_metrics(logits, labels):
-    #     if isinstance(logits, tuple):
-    #         logits = logits[0]
-    #     return logits.argmax(dim=-1)
 
     # # config env varibles
     # NEPTUNE_API_TOKEN = os.environ.get("NEPTUNE_API_TOKEN")
@@ -156,7 +141,7 @@ def main():
         logging_strategy='epoch',
         # generation_max_length=810,
         # generation_num_beams=1,
-        dataloader_num_workers=4,
+        dataloader_num_workers=6,
         # warmup_steps=57000,
         report_to="neptune",
         lr_scheduler_type='linear',
@@ -180,21 +165,12 @@ def main():
         max_seq_length=max_seq_length,
         tokenizer=tokenizer,
         formatting_func=generate_prompt,
-        # preprocess_logits_for_metrics = preprocess_logits_for_metrics,
         compute_metrics=compute_metrics
     )
-
     trainer.train()
 
 if __name__ == "__main__":
-    # parser = argparse.ArgumentParser(description='Train a model with specific command line arguments.')
-    # parser.add_argument('--path_trainset', type=str, default='Dataset_VulGen/vulgen_train_with_diff_lines_spaces.csv', help='Path to trainset csv file')
-    # parser.add_argument('--path_testset', type=str, default='Dataset_VulGen/vulgen_train_with_diff_lines_spaces.csv', help='Path to testset csv file')
-    # parser.add_argument('--full_vulgen', type=bool, default=False, help='Is trainset and test are from vulgen dataset?')
-    # parser.add_argument('--output_dir', type=str, default='saved_models', help='Output directory for the saved model')
-    # parser.add_argument('--learning_rate', type=float, default=5e-5, help='Learning rate for training')
-    # parser.add_argument('--batch_size_per_device', type=int, default=1, help='Batch size per device')
-    # parser.add_argument('--epochs', type=int, default=30, help='Number of training epochs')
-    # parser.add_argument('--generation_num_beams', type=int, default=1, help='Number of beams for generation')
-    # args = parser.parse_args()
     main()
+    
+    
+# command = "NCCL_P2P_DISABLE='1' OMP_NUM_THREADS='1' accelerate launch --config_file accelerate_config_files/deepspeed_stage2.yaml code_files/fine_tuning/Nxcode_7B/multi_gpus.py"

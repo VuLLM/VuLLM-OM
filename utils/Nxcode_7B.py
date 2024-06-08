@@ -11,7 +11,7 @@ def create_model_and_tokenizer(checkpoint):
     device_map = {"": device_index}
     tokenizer = AutoTokenizer.from_pretrained(checkpoint)
     tokenizer.padding_side = 'right'
-    tokenizer.pad_token = tokenizer.eos_token    
+    # tokenizer.pad_token = tokenizer.eos_token    
     
     # tokenizer.deprecation_warnings["Asking-to-pad-a-fast-tokenizer"] = True
     model = AutoModelForCausalLM.from_pretrained(checkpoint,
@@ -22,6 +22,7 @@ def create_model_and_tokenizer(checkpoint):
 def create_model_and_tokenizer_one_GPU(checkpoint):
     tokenizer = AutoTokenizer.from_pretrained(checkpoint)
     # tokenizer.pad_token = tokenizer.eos_token    
+    tokenizer.padding_side = 'right'
     # tokenizer.deprecation_warnings["Asking-to-pad-a-fast-tokenizer"] = True
     model = AutoModelForCausalLM.from_pretrained(checkpoint,
                                              device_map="auto", torch_dtype=torch.bfloat16)
