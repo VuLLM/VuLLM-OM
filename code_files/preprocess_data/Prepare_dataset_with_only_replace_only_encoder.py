@@ -349,7 +349,7 @@ def drop_duplicates(df):
         function_groups[function_hash].append(i)
 
     indexes_to_drop = [index for index_list in function_groups.values() if len(index_list) > 1 for index in index_list[1:]]
-    df = df.drop(indexes_to_drop)
+    df = df.drop(indexes_to_drop, axis=0)
     df = df.reset_index(drop=True)
     return df
 
@@ -530,8 +530,8 @@ def create_datasets(path_trainset, path_testset, full_vulgen=False):
     test['inputs'] = get_inputs(test)
     test['outputs'] = get_outpus(test, test_edits)
     # test = test[test['inputs'].str.len() + test['outputs'].str.len() <= 1500]  # Drop rows where 'inputs' length is larger than 1500
-    train = train[:1]
-    test = test[:50]
+    # train = train[:1]
+    # test = test[:50]
     # train = Dataset.from_pandas(train)
     # test= Dataset.from_pandas(test)
     # tokenized_train = tokenize(train, tokenizer)

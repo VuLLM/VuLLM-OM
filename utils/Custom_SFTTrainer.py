@@ -232,6 +232,8 @@ class Custom_SFTTrainer(SFTTrainer):
         gen_kwargs['max_new_tokens'] = 512 
         gen_kwargs['pad_token_id'] = self.tokenizer.pad_token_id
         gen_kwargs['eos_token_id'] = self.tokenizer.eos_token_id
+        # gen_kwargs['do_sample'] = True
+        # gen_kwargs['top_p'] = 0.95
          
         with autocast(dtype=torch.bfloat16):
             generated_tokens = self.model.generate(**generation_inputs, **gen_kwargs)

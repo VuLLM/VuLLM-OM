@@ -1,8 +1,8 @@
-from transformers import TrainingArguments, DataCollatorForLanguageModeling
-from trl import SFTTrainer, DataCollatorForCompletionOnlyLM
+from transformers import TrainingArguments
+from trl import DataCollatorForCompletionOnlyLM
 import torch
 import numpy as np
-import neptune
+# import neptune
 # from accelerate import Accelerator
 import evaluate
 import os
@@ -12,15 +12,16 @@ sys.path.append('/sise/home/urizlo/VuLLM_One_Stage')
 from utils import Nxcode_7B, Create_lora_starCoder, Custom_SFTTrainer
 from code_files.preprocess_data import Prepare_dataset_with_only_replace_only_encoder
 # import argparse
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
 from datasets import Dataset
 
 
 def main():    
-    checkpoint = "NTQAI/Nxcode-CQ-7B-orpo"
+    # checkpoint = "NTQAI/Nxcode-CQ-7B-orpo"
+    checkpoint = "saved_models/Mxcode_7B/checkpoint-149960"
     torch.backends.cuda.matmul.allow_tf32 = True
     torch.backends.cudnn.allow_tf32 = True
-    max_seq_length = 1550
+    max_seq_length = 2048
     
     model, tokenizer = Nxcode_7B.create_model_and_tokenizer(checkpoint)
     eos = tokenizer.eos_token
@@ -141,7 +142,7 @@ def main():
         logging_strategy='epoch',
         # generation_max_length=810,
         # generation_num_beams=1,
-        dataloader_num_workers=6,
+        dataloader_num_workers=4,
         # warmup_steps=57000,
         report_to="neptune",
         lr_scheduler_type='linear',
@@ -167,7 +168,7 @@ def main():
         formatting_func=generate_prompt,
         compute_metrics=compute_metrics
     )
-    trainer.train()
+    trainer.evaluate()
 
 if __name__ == "__main__":
     main()

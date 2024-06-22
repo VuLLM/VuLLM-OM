@@ -14,14 +14,19 @@ from datasets import Dataset
 
 
 def main():    
-    torch.cuda.set_device(0)
-    checkpoint = "NTQAI/Nxcode-CQ-7B-orpo"
+    # torch.cuda.set_device(0)
+    # checkpoint = "NTQAI/Nxcode-CQ-7B-orpo"
+    # checkpoint = "Qwen/CodeQwen1.5-7B"
+    checkpoint = "saved_models/codeQwen/checkpoint-98332"
+
     load_dotenv()
     torch.backends.cuda.matmul.allow_tf32 = True
     torch.backends.cudnn.allow_tf32 = True
-    max_seq_length = 1450
+    max_seq_length = 2048
     
     model, tokenizer = Nxcode_7B.create_model_and_tokenizer_one_GPU(checkpoint)
+    # model.generation_config.top_p = None
+    # model.generation_config.temperature = 0.0
     eos = tokenizer.eos_token
     # read and tokenized data
     path_trainset = "Datasets/vulgen_train_with_diff_lines_spaces.csv"
@@ -32,7 +37,6 @@ def main():
     test['prompt'] = test.apply(lambda row: f"""function:\n{row['inputs']}\nInstruction:\n{row['outputs']}{eos}""", axis=1)
     train = Dataset.from_pandas(train)
     test= Dataset.from_pandas(test)
-    max_seq_length = 1400
 
     # Function to filter out long samples
     def filter_long_samples(example):
@@ -43,7 +47,7 @@ def main():
     train = train.filter(filter_long_samples)
     test = test.filter(filter_long_samples)
     # create lora adaptors
-    model = Create_lora_starCoder.create_lora(model, rank=32, dropout=0.05)
+    # model = Create_lora_starCoder.create_lora(model, rank=32, dropout=0.05)
 
     def generate_prompt(sample, return_response=True):
         return sample['prompt']
@@ -132,7 +136,7 @@ def main():
 
     # create trainer object
     training_args = TrainingArguments(
-        output_dir="saved_models/Mxcode_7B",
+        output_dir="saved_models/codeQwen",
         evaluation_strategy="epoch",
         learning_rate=1e-4,
         adam_beta1=0.9,
@@ -184,7 +188,7 @@ def main():
         compute_metrics=compute_metrics
     )
 
-    trainer.train()
+    trainer.evaluate()
 
 if __name__ == "__main__":
     # parser = argparse.ArgumentParser(description='Train a model with specific command line arguments.')
