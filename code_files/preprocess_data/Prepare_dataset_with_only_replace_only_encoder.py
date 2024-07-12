@@ -401,6 +401,7 @@ def get_test(dataset_path, full_vulgen=False):
     test = pd.DataFrame()
     test['nonvul'] = data['nonvul']
     test['vul'] = vul_funcs['vul']
+    test['cwe'] = data['cwe']
     
     if full_vulgen:
         drop_index_path = 'pickle_files/location_with_spaces_to_delete_test.pkl'
@@ -409,7 +410,7 @@ def get_test(dataset_path, full_vulgen=False):
         test = test.drop(inject_indexes_to_delete)
         test = test.reset_index(drop=True)
     test = drop_duplicates(test)
-    test = test.drop(551)  # Drop index 551
+    # test = test.drop(551)  # Drop index 551
     test = test.reset_index(drop=True)
     print(len(test))
     return test
@@ -522,6 +523,7 @@ def create_datasets(path_trainset, path_testset, full_vulgen=False):
         tokenized_test (Dataset): Tokenized testing dataset.
     """
     train = get_train(path_trainset, full_vulgen)
+    # train = train[train['nonvul'].str.len() <= 4000]
     test = get_test(path_testset, full_vulgen)
     test_edits = get_edits(test)
     train_edits = get_edits(train)
