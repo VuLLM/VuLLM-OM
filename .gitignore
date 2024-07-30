@@ -7,3 +7,7 @@ __pycache__/
 .vscode/
 gen_vuls/
 TensorBoard/
+.pkl
+.pickle
+.json
+.csv
