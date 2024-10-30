@@ -8,6 +8,9 @@ from collections import defaultdict
 from transformers import AutoTokenizer
 import hashlib
 from matplotlib import pyplot as plt
+import hashlib
+from pycparser import c_parser, c_ast, parse_file
+import pycparser
 
 def last_diff(diff, changes):
     """
@@ -339,20 +342,71 @@ def append_spaces_suffix_to_duplicates(data: pd.DataFrame, column: str) -> pd.Da
 def drop_duplicates(df):
     function_groups = {}
     for i in range(len(df)):
-        nonvul = df['nonvul'].iloc[i]
-        lines_after_fix = df['vul'].iloc[i]
-        # Split the file content into functions (assuming functions are well-defined)
-        row = nonvul + lines_after_fix  # Change this based on your function definitions
-        function_hash = hashlib.sha256(row.encode()).hexdigest()
-        if function_hash not in function_groups:
-            function_groups[function_hash] = []
-        function_groups[function_hash].append(i)
+        try:
+            nonvul = df['nonvul'].iloc[i]
+            # nonvul = normalize_c_code(nonvul)
+            nonvul = nonvul.replace(" ", "").replace("\n", "").replace("\r", "").replace("\t", "")
+            lines_after_fix = df['vul'].iloc[i]
+            # lines_after_fix = normalize_c_code(lines_after_fix)
+            lines_after_fix = lines_after_fix.replace(" ", "").replace("\n", "").replace("\r", "").replace("\t", "")
+            # Split the file content into functions (assuming functions are well-defined)
+            row = nonvul + lines_after_fix  # Change this based on your function definitions
+            function_hash = hashlib.sha256(row.encode()).hexdigest()
+            if function_hash not in function_groups:
+                function_groups[function_hash] = []
+            function_groups[function_hash].append(i)
+        except:
+            continue
 
     indexes_to_drop = [index for index_list in function_groups.values() if len(index_list) > 1 for index in index_list[1:]]
     df = df.drop(indexes_to_drop, axis=0)
     df = df.reset_index(drop=True)
     return df
 
+
+
+
+
+
+class CCodeNormalizer(c_ast.NodeVisitor):
+    def __init__(self):
+        self.variable_map = {}
+        self.var_count = 1
+    
+    def visit_FuncDef(self, node):
+        # Reset variable mapping for each function definition
+        self.variable_map = {}
+        self.var_count = 1
+        self.generic_visit(node)
+    
+    def visit_Decl(self, node):
+        # Only rename variables in declarations that are not function parameters or functions themselves
+        if isinstance(node.type, c_ast.TypeDecl):
+            if isinstance(node.type.type, c_ast.IdentifierType) and not isinstance(node.init, c_ast.FuncCall):
+                identifier = node.name
+                if identifier not in self.variable_map:
+                    new_name = f"var{self.var_count}"
+                    self.variable_map[identifier] = new_name
+                    self.var_count += 1
+                node.name = self.variable_map[identifier]
+        self.generic_visit(node)
+    
+    def visit_ID(self, node):
+        # Rename variable uses
+        if node.name in self.variable_map:
+            node.name = self.variable_map[node.name]
+        self.generic_visit(node)
+
+def normalize_c_code(code):
+    parser = c_parser.CParser()
+    ast = parser.parse(code)
+    normalizer = CCodeNormalizer()
+    normalizer.visit(ast)
+    return ast
+
+def ast_to_string(ast):
+    """Convert AST back to code. This is a simple unparser."""
+    return pycparser.c_generator.CGenerator().visit(ast)
 
 
 # get train data
@@ -394,13 +448,15 @@ def get_test(dataset_path, full_vulgen=False):
     test (pandas.DataFrame): The processed test dataset.
     """
     data = pd.read_csv(dataset_path)
-
+    if 'cwe' not in data.columns:
+        data['cwe'] = -1
     #get vul function
     vul_funcs = data[["vul"]]
 
     test = pd.DataFrame()
     test['nonvul'] = data['nonvul']
     test['vul'] = vul_funcs['vul']
+    
     test['cwe'] = data['cwe']
     
     if full_vulgen:
@@ -410,7 +466,6 @@ def get_test(dataset_path, full_vulgen=False):
         test = test.drop(inject_indexes_to_delete)
         test = test.reset_index(drop=True)
     test = drop_duplicates(test)
-    # test = test.drop(551)  # Drop index 551
     test = test.reset_index(drop=True)
     print(len(test))
     return test

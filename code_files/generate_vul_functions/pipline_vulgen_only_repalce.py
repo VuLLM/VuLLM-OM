@@ -80,27 +80,27 @@ def append_spaces_suffix_to_duplicates(data: pd.DataFrame, column: str) -> pd.Da
 def get_model_tokenizer(localization_model_id):
     device = "cuda" # for GPU usage or "cpu" for CPU usage
 
-    config = PeftConfig.from_pretrained(localization_model_id)
-    localization_model = AutoModelForSeq2SeqLM.from_pretrained(config.base_model_name_or_path, 
+    # config = PeftConfig.from_pretrained(localization_model_id)
+    localization_model = AutoModelForSeq2SeqLM.from_pretrained(localization_model_id, 
                                                 return_dict=True,
                                                 torch_dtype=torch.float16, 
                                                 trust_remote_code=True,
                                                 device_map='auto'
                                                 )
-    tokenizer = AutoTokenizer.from_pretrained(config.base_model_name_or_path)
+    tokenizer = AutoTokenizer.from_pretrained(localization_model_id)
     tokenizer.deprecation_warnings["Asking-to-pad-a-fast-tokenizer"] = True
 
     # Load the Lora model
-    localization_model = PeftModel.from_pretrained(localization_model, localization_model_id).to(device)
+    # localization_model = PeftModel.from_pretrained(localization_model, localization_model_id).to(device)
 
-    localization_model.config.max_length=359
-    localization_model.config.use_cache=False
-    localization_model.config.decoder_start_token_id = tokenizer.bos_token_id  # Replace tokenizer.cls_token_id with the appropriate token ID
-    localization_model.config.pad_token_id = 50256
-    localization_model.config.decoder.pad_token_id = localization_model.config.decoder.eos_token_id
-    localization_model.config.encoder.pad_token_id = localization_model.config.encoder.eos_token_id
-    localization_model.config.encoder.max_length = 359
-    localization_model.config.decoder.max_length = 359
+    # localization_model.config.max_length=359
+    # localization_model.config.use_cache=False
+    # localization_model.config.decoder_start_token_id = tokenizer.bos_token_id  # Replace tokenizer.cls_token_id with the appropriate token ID
+    # localization_model.config.pad_token_id = 50256
+    # localization_model.config.decoder.pad_token_id = localization_model.config.decoder.eos_token_id
+    # localization_model.config.encoder.pad_token_id = localization_model.config.encoder.eos_token_id
+    # localization_model.config.encoder.max_length = 359
+    # localization_model.config.decoder.max_length = 359
     return localization_model, tokenizer
 
 
@@ -223,15 +223,15 @@ def main(path_testset, model_huggingface_path, all_vulgen, output_dir):
     torch.backends.cuda.matmul.allow_tf32 = True
     torch.backends.cudnn.allow_tf32 = True
     load_dotenv()
-    TOKEN = os.environ.get("HUGGINGFACE_TOKEN")
-    login(token=TOKEN)
+    # TOKEN = os.environ.get("HUGGINGFACE_TOKEN")
+    # login(token=TOKEN)
     model, tokenizer = get_model_tokenizer(model_huggingface_path)
     tokenized_local_test = Prepare_dataset_with_only_replace.get_testset_for_eval(tokenizer, path_testset=path_testset, all_vulgen=all_vulgen)
     trainer = get_trainer(model, tokenizer, tokenized_local_test)
     res_mod = get_prediction(trainer, tokenizer)
     df = pd.DataFrame(res_mod, columns=['res_mod'])
     df.to_csv(output_dir, index=True)
-    not_good = get_accurecy(output_dir, path_testset, all_vulgen)
+    # not_good = get_accurecy(output_dir, path_testset, all_vulgen)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Train a model with specific command line arguments.')

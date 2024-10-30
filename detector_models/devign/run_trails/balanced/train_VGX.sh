@@ -1,0 +1,1 @@
+./run_trails/balanced/train_model_balanced.sh data/VGX_input

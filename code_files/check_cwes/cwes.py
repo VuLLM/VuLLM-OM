@@ -10,6 +10,8 @@ from torch.cuda.amp import autocast
 # import pandas as pd
 import os
 from tqdm import tqdm
+from collections import Counter as Count
+import pickle
 
 def modify_attention(data, tokenizer, target_string):
     # Tokenize the target string to get the token ids
@@ -40,8 +42,8 @@ def modify_attention(data, tokenizer, target_string):
 def prediction_step(model, inputs, tokenizer):
     generate_inputs, inputs = modify_attention(inputs, tokenizer, "Instruction:\n")
     generate_inputs = {
-        'input_ids': torch.tensor(generate_inputs['input_ids']).to(model.device),
-        'attention_mask': torch.tensor(generate_inputs['attention_mask']).to(model.device)
+        'input_ids': generate_inputs['input_ids'].clone().detach().to(model.device),
+        'attention_mask': generate_inputs['attention_mask'].clone().detach().to(model.device)
     }
     generation_inputs = generate_inputs.copy()
     # If the `decoder_input_ids` was created from `labels`, evict the former, so that the model can freely generate
@@ -59,6 +61,8 @@ def prediction_step(model, inputs, tokenizer):
     gen_kwargs['max_new_tokens'] = 512 
     gen_kwargs['pad_token_id'] = tokenizer.pad_token_id
     gen_kwargs['eos_token_id'] = tokenizer.eos_token_id
+    gen_kwargs['num_beams'] = 3
+
     # gen_kwargs['do_sample'] = True
     # gen_kwargs['top_p'] = 0.95
         
@@ -103,10 +107,13 @@ def is_accurecy(eval_preds, tokenizer):
             return True
     return False
 
+
+    
+
 def main():    
     # torch.cuda.set_device(0)
     os.environ["TOKENIZERS_PARALLELISM"] = "true"
-    checkpoint = "saved_models/codeQwen-new-dataset-cwe-stratify/checkpoint-560425"
+    checkpoint = "saved_models/codeQwen-fullData-shorter-than30/checkpoint-369344"
     torch.backends.cuda.matmul.allow_tf32 = True
     torch.backends.cudnn.allow_tf32 = True
     max_seq_length = 1450
@@ -114,8 +121,8 @@ def main():
     model, tokenizer = Nxcode_7B.create_model_and_tokenizer_one_GPU(checkpoint)
 
     # read and tokenized data
-    path_trainset = "Datasets/full_trainset.csv"
-    path_testset = "Datasets/full_testset.csv"
+    path_trainset = "Datasets/vulgen_datasets/vulgen_test_775.csv"
+    path_testset = "Datasets/full_testset_smaller_than_30_words.csv"
     full_vulgen = False
     eos = tokenizer.eos_token
     
@@ -123,6 +130,8 @@ def main():
     # train['prompt'] = train.apply(lambda row: f"""function:\n{row['inputs']}\nInstruction:\n{row['outputs']}{eos}""", axis=1)
     test['prompt'] = test.apply(lambda row: f"""function:\n{row['inputs']}\nInstruction:\n{row['outputs']}{eos}""", axis=1)
     test = test[['prompt', 'cwe']]
+
+    test['cwe'] = test['cwe'].fillna(-1)
     # train = Dataset.from_pandas(train)
     test = Dataset.from_pandas(test)
 
@@ -135,7 +144,7 @@ def main():
     # train = train.filter(filter_long_samples)
     test = test.filter(filter_long_samples)
     # test.reset_index(drop=True, inplace=True)
-    test = test.map(lambda example: tokenizer(example['prompt'], truncation=True, padding=False), batched=True)
+    test = test.map(lambda example: tokenizer(example['prompt'], truncation=True, max_length=1450, padding=False), batched=True)
     
     # Create train and test dataloaders
     test_dataloader = torch.utils.data.DataLoader(test, batch_size=1, num_workers=4,shuffle=False)
@@ -144,16 +153,27 @@ def main():
         generated_tokens, labels = prediction_step(model, inputs, tokenizer)
         if is_accurecy(([generated_tokens], labels), tokenizer):
             correct_indexes.append(step)
-        
     print("Number of correct indexes:", len(correct_indexes))
 
     # Get the unique CWES from full_testset.csv that appear in the correct indexes
     unique_cwes = set()
+    cwe_hist = Count()
     for index in correct_indexes:
         cwe = test[index]['cwe']
-        unique_cwes.add(cwe)
-
+        if cwe != -1:
+            unique_cwes.add(cwe)
+            if cwe not in cwe_hist:
+                cwe_hist[cwe] = 1
+            else:
+                cwe_hist[cwe] += 1
+    
+    # Save cwe_hist as pickle
+    with open('cwe_hist.pickle', 'wb') as f:
+        pickle.dump(cwe_hist, f)
+    print("Accuracy:", len(correct_indexes)/len(test))
+    print("Length of test:", len(test))
     print("Unique CWES:", unique_cwes)
     print("Number of unique CWES:", len(unique_cwes))
+    
 if __name__ == "__main__":
     main()

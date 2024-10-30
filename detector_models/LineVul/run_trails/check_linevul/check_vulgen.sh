@@ -1,0 +1,13 @@
+python detector_models/LineVul/code/linevul/linevul_main.py \
+  --model_name=12heads_linevul_model.bin \
+  --output_dir=./saved_models/check_vulgen_nonvul \
+  --model_type=roberta \
+  --tokenizer_name=microsoft/codebert-base \
+  --model_name_or_path=microsoft/codebert-base \
+  --do_test \
+  --test_data_file=detector_models/LineVul/code/data/vulgen/only_vul/vulgen_only_vul.csv \
+  --block_size 512 \
+  --eval_batch_size 128 \
+  --learning_rate 5e-6 \
+  --max_grad_norm 1.0 \
+  --seed 333

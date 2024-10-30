@@ -1,0 +1,18 @@
+python detector_models/LineVul/code/linevul/linevul_main.py \
+  --output_dir=./saved_models/imbalanced_devign_reveal/333 \
+  --model_type=roberta \
+  --tokenizer_name=microsoft/codebert-base \
+  --model_name_or_path=microsoft/codebert-base \
+  --do_train \
+  --do_test \
+  --train_data_file=detector_models/LineVul/code/data/ground_truth/big-vul-small/train.csv \
+  --eval_data_file=detector_models/LineVul/code/data/big-vul_dataset/test.csv \
+  --test_data_file=detector_models/LineVul/code/data/big-vul_dataset/test.csv \
+  --epochs 10 \
+  --block_size 512 \
+  --train_batch_size 32 \
+  --eval_batch_size 128 \
+  --learning_rate 5e-6 \
+  --max_grad_norm 1.0 \
+  --evaluate_during_training \
+  --seed 333

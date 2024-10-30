@@ -1,0 +1,9 @@
+data/
+venv
+linevul/saved_models*/
+*.log
+*.zip
+__pycache__
+linevul/output.txt
+.csv
+.pkl

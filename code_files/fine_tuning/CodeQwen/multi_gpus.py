@@ -21,13 +21,13 @@ def main():
     load_dotenv()
     torch.backends.cuda.matmul.allow_tf32 = True
     torch.backends.cudnn.allow_tf32 = True
-    max_seq_length = 1450
+    max_seq_length = 1400
     
-    model, tokenizer = Nxcode_7B.create_model_and_tokenizer_one_GPU(checkpoint)
+    model, tokenizer = Nxcode_7B.create_model_and_tokenizer(checkpoint)
 
     # read and tokenized data
-    path_trainset = 'Datasets/full_trainset_smaller_than_20_words.csv'
-    path_testset = "Datasets/full_testset_smaller_than_20_words.csv"
+    path_trainset = 'Datasets/only_cwe_smaller_than_20_words.csv'
+    path_testset = "Datasets/full_testset_changes_smaller_than_20_words.csv"
     full_vulgen = False
     eos = tokenizer.eos_token
     
@@ -122,16 +122,16 @@ def main():
 
     # create trainer object
     training_args = TrainingArguments(
-        output_dir="saved_models/codeQwen-fullData-shorter-than20",
+        output_dir="saved_models/codeQwen-onlyCWE-shorter-than20",
         evaluation_strategy="epoch",
-        learning_rate=5e-5,
+        learning_rate=1e-4,
         adam_beta1=0.9,
         adam_beta2=0.95,
         adam_epsilon=1e-8,
         per_device_train_batch_size=1,
         per_device_eval_batch_size=1,
         gradient_accumulation_steps=1,
-        weight_decay=0.005,
+        weight_decay=0.001,
         num_train_epochs=30,
         # predict_with_generate=True,
         bf16=True,
@@ -187,3 +187,6 @@ if __name__ == "__main__":
     # parser.add_argument('--generation_num_beams', type=int, default=1, help='Number of beams for generation')
     # args = parser.parse_args()
     main()
+    
+    
+# command = "NCCL_P2P_DISABLE='1' OMP_NUM_THREADS='1' accelerate launch --config_file accelerate_config_files/deepspeed_stage2.yaml code_files/fine_tuning/CodeQwen/multi_gpus.py"
