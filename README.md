@@ -13,58 +13,58 @@ VuLLM is tool for injecting vulnerabilities to C-code functions. VuLLM is utiliz
 
 ## Project Structure
 ```bash
-VuLLM/
-├── README.md                                               # Project overview and setup instructions
-├── .gitignore                                              # Specifies intentionally untracked files to ignore
-├── LICENSE                                                 # License information for the project
-├── requirements.txt                                        # License information for the project
-├── localiztion_model/                                      # Fine-tuning localiztion model on CodeT5+ as base model   
-|   ├── run_deepspeed_train.py                              # Run Fine_tuninig_accelerator.py file           
-│   └── CodeT5p/
-│       ├── Fine_tuninig_accelerator.py                     # Fine-tuning the model on multuply GPUs
-│       ├── Fine_tuninig_one_GPU.py                         # Fine-tuning the model on one GPU
-|       └── Prepare_data_original.py                        # Preprocess VulGen Dataset for fine-tuning localiztion model
-├── injection_model/                                        # Fine-tuning injection model on CodeT5+ as base model            
-│   ├── Fine_tuninig_accelerator.py                         # Fine-tuning the model on multuply GPUs
-│   ├── Fine_tuninig_one_GPU.py                             # Fine-tuning the model on one GPU
-|   ├── run_deepspeed_train.py                              # Run Fine_tuninig_accelerator.py file           
-|   └── Prepare_dataset_with_unique_lines.py                # Preprocess VulGen Dataset with unique duplicated lines for fine-tuning injection model
-├── connected_models/                                       # Infer
-nce both models
-|   ├── pipeline_localization_vulgen.py                     # Inference localization model on VulGen test set and save the results to connected_models/localization_results/res_loc.csv
-|   ├── pipeline_injection_vulgen.py                        # Inference Injection model on VulGen test set and save the results to connected_models/injection_results/res_inj.csv   
-|   ├── replace_function_with_line_spaces_vulgen .py        # Operate the replacment component, get non-vulnerable function and the output of localization\injection model and return the vulnerable new function     
-|   ├── pipeline_localization_custom.py                     # Inference localization model on custom test set and save the results to connected_models/localization_results/res_loc.csv
-|   ├── pipeline_injection_custom.py                        # Inference Injection model on custom test set and save the results to connected_models/injection_results/res_inj.csv   
-|   ├── replace_function_with_line_spaces_custom_dataset.py # Operate the replacment component, get non-vulnerable function and the output of localization\injection model and return the vulnerable new function     
-│   ├── Dataset/                                            # Empty folder that can contain dataset to infernce the models on it
-|   ├── generated_vul/                                      # Folder that contain the generate vulnerable functions
-│   |   └── vulgen_res.csv                                  # CSV with new vulnerable function from VulGen test set
-|   ├── localization_results/                               # Folder that contain the output of localization model
-|   |   └── vulgen_res_loc.csv                              # CSV with the outpus of the localization model
-|   ├── injection_results/                                  # Folder that contain the output of localization model
-|       └── vulgen_inject_res.csv                           # CSV with the outpus of the injection model
-├── pickle_files/                                           # Contain pickle files that are lists with the indexes to drop in the dataframe of VulGen dataset, becuse this sample has more than 2,048 tokens
-|   ├── location_with_spaces_to_delete_train.pkl            # Indexes to drop in location train set
-|   ├── location_with_spaces_to_delete_test.pkl             # Indexes to drop in location test set
-|   ├── inject_with_spaces_to_delete_train.pkl              # Indexes to drop in injection train set
-|   └──  inject_with_spaces_to_delete_test.pkl              # Indexes to drop in injection test set
-├── utils/                                                  # Contain py files that useful functions
-|   ├── CodeT5p_6B.py                                       # Contain help functions for fine-tuning and testing the models
-|   ├── Create_lora.py                                      # Rapper for create LORA when fine-tuning models
-|   ├── Custom_trainer.py                                   # Overwrite the Seq2SeqTrainer Huggingface models, to help fine-tuning
-├── saved_models/                                           # Folder that contain models while fine-tuning, and in the end of fine-tuning
-├── Exploratory data analysis/                              
-|   └── add_diff_lines.py                                   # Contain functions that get dataset of non-vulnerable functions and add spaces to the ends of the duplicated lines of code in each function to make them unique
-├── accelerate_config_files/                                # Contain confiuration files for fine-tuning with DeepSpeed and accelerate package from Huggingface to fine-tuning on multi-GPUs
-|   ├── deepspeed_stage2.yaml                               # Configuration for DeepSpeed
-|   └── deepspeed.json                                      # Configuration for DeepSpeed
-├── detector_models/                                        # Contain all files of Devign and LineVul model for the effictevness test that show in Table 2
-|    ├── devign/                                            # read README.md for this folder in this path detector_models/devign/VuLLM_README.md
-|    └── LineVul/                                           # read README.md for this folder in this path detector_models/LineVul/VuLLM_README.md
-├── Dataset_VulGen/                                         # Contain CSVs file with samples from VulGen dataset
-|   ├── README.md                                           # There is Link to Google Drive to download this CSVs files
-└── requirements.txt                                        # Project dependencies
+VuLLM_One_Stage/
+├── .env
+├── LICENSE
+├── README.md
+├── accelerate_config_files/
+│   ├── deepspeed.json
+│   └── deepspeed_stage2.yaml
+├── code_files/
+│   ├── Save_and_load_hub.ipynb
+│   ├── check_cwes/
+│   │   └── cwes.py
+│   ├── fine_tuning/
+│   │   └── CodeQwen/
+│   │       ├── Fine_tuning_one_GPU_only_replace.py
+│   │       └── multi_gpus.py
+│   ├── generate_vul_functions/
+│   │   ├── edit_data.py
+│   │   ├── gen_vul.py
+│   │   ├── pipeline_vulgen.py
+│   │   ├── pipline_vulgen_only_repalce.py
+│   │   └── primevul_test.jsonl
+│   ├── preprocess_data/
+│   │   ├── Prepare_dataset_with_line_spaces.py
+│   │   ├── Prepare_dataset_with_only_replace_only_encoder.py
+│   │   └── __pycache__/
+│   │       ├── Prepare_dataset_with_only_replace.cpython-310.pyc
+│   │       ├── Prepare_dataset_with_only_replace_codeT5.cpython-310.pyc
+│   │       ├── Prepare_dataset_with_only_replace_mistral.cpython-310.pyc
+│   │       └── Prepare_dataset_with_only_replace_only_encoder.cpython-310.pyc
+│   └── replace_compenent/
+│       ├── modify_instructions.csv
+│       ├── replace_function_one_model.py
+│       ├── replace_function_with_line_spaces_vulgen.py
+│       └── replace_function_with_only_replace.py
+├── cwe_hist_TM.png
+├── cwes.pickle
+├── detector_models/
+├── plots.py
+├── requirements.txt
+├── utils/
+│   ├── CodeT5p_6B.py
+│   ├── Create_lora.py
+│   ├── Create_lora_Llama_3_8B.py
+│   ├── Create_lora_mistral.py
+│   ├── Create_lora_starCoder.py
+│   ├── Custom_SFTTrainer.py
+│   ├── Custom_trainer.py
+│   ├── DeepSeek_7B.py
+│   ├── Llama_3_8B.py
+│   ├── Mistral_7B.py
+│   ├── Nxcode_7B.py
+│   ├── StarCoder2_7B.py                                      # Project dependencies
 ```
 
 ## Installation
