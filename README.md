@@ -5,11 +5,12 @@
 VuLLM One Model (OM) is tool for injecting vulnerabilities to C-code functions. VuLLM OM is utilizing Code LLM (CodeQwen1.5-7B) to learn the specific text modification instructions for generating the vulnerable C-Code function.
 
 ## Table of Contents
-- [Project Structure](#project-structure)
-- [Installation](#installation)
-- [Datasets](#datasets)
-- [Usage](#usage)
-- [License](#license)
+- [Project Structure](#Project-Structure)
+- [Installation](#Installation)
+- [Datasets](#Datasets)
+- [Reproduce Tables Results](#Reproduce-Tables-Results)
+- [Usage](#Usage)
+- [License](#License)
 - [Contact](#Contact)
 
 ## Project Structure
@@ -68,7 +69,7 @@ To install the necessary dependencies, run the following command:
 ```sh
 pip install -r requirements.txt
 ```
-## Datasets
+## CSV Datasets
 
 ### VulGen Samples Subsets
 - Download VulGen 8,586 samples Train set: [VulGen Train set](https://drive.google.com/file/d/1jz8uRy475PpGngWAl6k8o6Vhvm60LYEk/view?usp=sharing)
@@ -157,51 +158,6 @@ When running the fine-tuning scripts, the following arguments can be specified:
 #### Example for running
 `python localization_model/CodeT5p/Fine_tuning_one_GPU.py --path_trainset Dataset_VulGen/vulgen_train_with_diff_lines_spaces.csv --path_testset Dataset_VulGen/vulgen_test_with_diff_lines_spaces.csv --is_vulgen True --output_dir saved_models --learning_rate 5e-5 --batch_size_per_device 1 --epochs 30 --generation_num_beams 1`
 
-
-### Get Results of Acuurecy in Table 1 - Infernce all process (localization, injection models and replacment component).
-
-#### Infernce Localization model on 775 samples from VulGen test set
-
-Run `connected_models/pipeline_localization_vulgen.py`<br>
-Arguments:
-- `path_testset` (str): Path to test set csv file.
-- `model_huggingface_path` (str): Path to load lora adapters form huggingface.
-- `all_vulgen` (bool): Is the test set is the whole test set of VulGen?
-- `output_dir` (srt): Path to where to save the loclization csv file.
-
-To run on 775 samples from VulGen, path_testset: `Dataset_VulGen/vulgen_test_775_with_diff_lines_spaces.csv`.
-
-#### Example for running
-
-`python connected_models/pipeline_localization_vulgen.py --path_testset Dataset_VulGen/vulgen_test_775_with_diff_lines_spaces.csv --model_huggingface_path urizlo/CodeT5-6B-inject-acc0.6793-dropout0.05-r64-lr6e-5-epochs30-dropDuplicate --all_vulgen True --output_dir connected_models/localization_results/vulgen_res_loc.csv`
-
-#### Infernce Injection model on 775 samples from VulGen test set
-
-Run `connected_models/pipeline_injection_vulgen.py`<br>
-Arguments:
-- `path_testset` (str): Path to test set csv file.
-- `model_huggingface_path` (str): Path to load lora adapters form huggingface.
-- `all_vulgen` (bool): Is the test set is the whole test set of VulGen?
-- `path_res_local` (str): Path to localization results of the testset.
-- `output_dir` (srt): Path to where to save the loclization csv file.
-
-#### Example for running
-
-`python connected_models/pipeline_injection_vulgen.py --path_testset Dataset_VulGen/vulgen_test_775_with_diff_lines_spaces.csv --model_huggingface_path urizlo/CodeT5-6B-local-acc0.5271-dropout0.05-r64-lr6e-5-epochs30-dropDuplicate --all_vulgen True --path_res_local connected_models/localization_results/vulgen_res_loc.csv --output_dir connected_models/injection_results/vulgen_res_inj.csv`
-
-#### Operate Replacment component
-
-Run `connected_models/replace_function_with_line_spaces_vulgen.py`<br>
-Arguments:
-- `path_testset` (str): Path to test set csv file.
-- `path_res_local` (str): Path to localization results of the testset.
-- `path_res_inj` (str): Path to injection results of the testset.
-- `all_vulgen` (bool): Is the test set is the whole test set of VulGen?
-- `output_dir` (srt): Path to where to save the new vulnerable functions csv file.
-
-#### Example for running
-
-`python connected_models/replace_function_with_line_spaces_vulgen.py --path_testset Dataset_VulGen/vulgen_test_775_with_diff_lines_spaces.csv --path_res_local connected_models/localization_results/vulgen_res_loc.csv  --path_res_inj connected_models/injection_results/vulgen_res_inj.csv --all_vulgen True --output_dir connected_models/genrated_vul/vulgen_res.csv`
 
 ### Infernce all process (localization, injection models and replacment component) for custom dataset.
 
