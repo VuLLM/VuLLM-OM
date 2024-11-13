@@ -2,11 +2,12 @@
 
 ## Introduction
 
-VuLLM is tool for injecting vulnerabilities to C-code functions. VuLLM is utilizing Code LLM (CodeQwen1.5-7B)to learn the specific text modification instructions for generating the vulnerable C-Code function.
+VuLLM One Model (OM) is tool for injecting vulnerabilities to C-code functions. VuLLM OM is utilizing Code LLM (CodeQwen1.5-7B) to learn the specific text modification instructions for generating the vulnerable C-Code function.
 
 ## Table of Contents
 - [Project Structure](#project-structure)
 - [Installation](#installation)
+- [Datasets](#datasets)
 - [Usage](#usage)
 - [License](#license)
 - [Contact](#Contact)
@@ -14,7 +15,6 @@ VuLLM is tool for injecting vulnerabilities to C-code functions. VuLLM is utiliz
 ## Project Structure
 ```bash
 VuLLM_One_Stage/
-├── .env
 ├── LICENSE
 ├── README.md
 ├── accelerate_config_files/
@@ -37,11 +37,6 @@ VuLLM_One_Stage/
 │   ├── preprocess_data/
 │   │   ├── Prepare_dataset_with_line_spaces.py
 │   │   ├── Prepare_dataset_with_only_replace_only_encoder.py
-│   │   └── __pycache__/
-│   │       ├── Prepare_dataset_with_only_replace.cpython-310.pyc
-│   │       ├── Prepare_dataset_with_only_replace_codeT5.cpython-310.pyc
-│   │       ├── Prepare_dataset_with_only_replace_mistral.cpython-310.pyc
-│   │       └── Prepare_dataset_with_only_replace_only_encoder.cpython-310.pyc
 │   └── replace_compenent/
 │       ├── modify_instructions.csv
 │       ├── replace_function_one_model.py
@@ -73,13 +68,24 @@ To install the necessary dependencies, run the following command:
 ```sh
 pip install -r requirements.txt
 ```
+## Datasets
 
+### VulGen Samples Subsets
+Download VulGen 8,586 samples Train set: [VulGen Train set](https://drive.google.com/file/d/1jz8uRy475PpGngWAl6k8o6Vhvm60LYEk/view?usp=sharing)
+Download VulGen 775 samples Test set: [VulGen Test set](https://drive.google.com/file/d/1ZxGnRa8VmSR-EKfBxwcdbeOuYfUIxSbk/view?usp=sharing)
+Download VulGen 479 Test set that used for Effectivness: [Samples Used for Effectivness](https://drive.google.com/file/d/14emWYvRm-M3_jdbdcBBs8QOtJGf-OtlJ/view?usp=sharing)
+### VuLLM Samples Subsets
+Download VuLLM 31,679 samples Train set: [VuLLM Dataset](https://drive.google.com/file/d/1I9t6s5bwNHTaGs7zdfeBZLFv7YpeGD2Q/view?usp=sharing)
+Download VuLLM 7,166 samples Train set shorter than 5: [VuLLM Train set Shorter Than 5](https://drive.google.com/file/d/1G7sLvrBSqg5WW96Iqhj-VH2u3AquqvpD/view?usp=sharing)
+Download VuLLM 289 samples Test set shorter than 5: [VuLLM Test set Shorter Than 5](https://drive.google.com/file/d/1qh3EdzoPGdVex3183EIIrFDgOptXcXD9/view?usp=sharing)
+Download VuLLM 14,420 samples Train set shorter than 10: [VuLLM Train set Shorter Than 10](https://drive.google.com/file/d/1oNK2ejkl83-Jo56ZlTpyKjdl9AFkxgrC/view?usp=sharing)
+Download VuLLM 637 samples Test set shorter than 10: [VuLLM Test set Shorter Than 10](https://drive.google.com/file/d/16CnmQwUkMiUUDSYSxNtVeXZt2R-Yi1ez/view?usp=sharing)
+Download VuLLM 23,069 samples Train set shorter than 20: [VuLLM Train set Shorter Than 20](https://drive.google.com/file/d/1Wu-pXk6QdMgQgZN8ZwGBysx-KYgPWRo4/view?usp=sharing)
+Download VuLLM 1,064 samples Test set shorter than 20: [VuLLM Test set Shorter Than 20](https://drive.google.com/file/d/1teLkEGhPU_N16idmDkm87M1cylrahi8l/view?usp=sharing)
+Download VuLLM 27,318 samples Train set shorter than 30: [VuLLM Train set Shorter Than 30](https://drive.google.com/file/d/15dSPyA9RjPXkRE6Nxhj-EKLZHMhPhvH1/view?usp=sharing)
+Download VuLLM 1,274 samples Test set shorter than 30: [VuLLM Test set Shorter Than 30](https://drive.google.com/file/d/1vp2isYcva1_nTjGMdVS0lEKhVEAVh3_y/view?usp=sharing)
 
 ## Usage
-
-### Download VulGen Dataset from Google Drive
-
-Download files from here: https://drive.google.com/file/d/1hzq_i01IqKSIaGcKEpkw3OHUlD7neScT/view?usp=drive_link
 
 ### Fine-tuning the Localization Model
 
