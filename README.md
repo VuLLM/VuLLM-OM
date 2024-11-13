@@ -7,7 +7,7 @@ VuLLM One Model (OM) is tool for injecting vulnerabilities to C-code functions. 
 ## Table of Contents
 - [Project Structure](#Project-Structure)
 - [Installation](#Installation)
-- [Datasets](#Datasets)
+- [CSV Datasets](#CSV-Datasets)
 - [Reproduce Tables Results](#Reproduce-Tables-Results)
 - [Usage](#Usage)
 - [License](#License)
