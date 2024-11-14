@@ -90,7 +90,13 @@ pip install -r requirements.txt
 ## Reproduce Tables Results
 
 ### Get Results of Acuurecy in Table 1 - Infernce VuLLM OM.
-
+1. Download Download VulGen 775 samples Test set ans save it.
+2. Open `reproduce/table1.sh` change the following Arguments:
+- `path_testset` (str): Path to VulGen 775 samples Test set.
+- `model_path` (str): Path to load lora adapters and the model.
+- `output_dir` (srt): Path to where to save the generated vulnerable function from 775 samples.
+3. Run `sh reproduce/table1.sh`
+  
 #### Infernce VuLLM on 775 samples from VulGen test set
 
 Run `connected_models/pipeline_localization_vulgen.py`<br>
