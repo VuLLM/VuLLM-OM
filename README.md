@@ -8,6 +8,7 @@ VuLLM One Model (OM) is tool for injecting vulnerabilities to C-code functions. 
 - [Project Structure](#Project-Structure)
 - [Installation](#Installation)
 - [CSV Datasets](#CSV-Datasets)
+- [Download Models](#Download-Models)
 - [Reproduce Tables Results](#Reproduce-Tables-Results)
 - [Usage](#Usage)
 - [License](#License)
@@ -69,13 +70,18 @@ To install the necessary dependencies, run the following command:
 ```sh
 pip install -r requirements.txt
 ```
+### Hardware and Software requirements
+- Linux OS
+- GPU with 48 GB RAM
+
+  
 ## CSV Datasets
 
-### VulGen Samples Subsets
+### VulGen Dataset Samples Subsets
 - Download VulGen 8,586 samples Train set: [VulGen Train set](https://drive.google.com/file/d/1jz8uRy475PpGngWAl6k8o6Vhvm60LYEk/view?usp=sharing)
-- Download VulGen 775 samples Test set: [VulGen Test set](https://drive.google.com/file/d/1ZxGnRa8VmSR-EKfBxwcdbeOuYfUIxSbk/view?usp=sharing)
+- <a id="vulgen-testset">Download VulGen 775 samples Test set: [VulGen Test set](https://drive.google.com/file/d/1ZxGnRa8VmSR-EKfBxwcdbeOuYfUIxSbk/view?usp=sharing)</a>
 - Download VulGen 479 Test set that used for Effectivness: [Samples Used for Effectivness](https://drive.google.com/file/d/14emWYvRm-M3_jdbdcBBs8QOtJGf-OtlJ/view?usp=sharing)
-### VuLLM Samples Subsets
+### VuLLM Dataset Samples Subsets
 - Download VuLLM 31,679 samples Train set: [VuLLM Dataset](https://drive.google.com/file/d/1I9t6s5bwNHTaGs7zdfeBZLFv7YpeGD2Q/view?usp=sharing)
 - Download VuLLM 7,166 samples Train set shorter than 5: [VuLLM Train set Shorter Than 5](https://drive.google.com/file/d/1G7sLvrBSqg5WW96Iqhj-VH2u3AquqvpD/view?usp=sharing)
 - Download VuLLM 289 samples Test set shorter than 5: [VuLLM Test set Shorter Than 5](https://drive.google.com/file/d/1qh3EdzoPGdVex3183EIIrFDgOptXcXD9/view?usp=sharing)
@@ -87,13 +93,22 @@ pip install -r requirements.txt
 - Download VuLLM 1,274 samples Test set shorter than 30: [VuLLM Test set Shorter Than 30](https://drive.google.com/file/d/1vp2isYcva1_nTjGMdVS0lEKhVEAVh3_y/view?usp=sharing)
 
 
+  ## Download Models
+  - <a id="model-table1">Download Fine-tuned model for table 1 (fine-tuned on VulGen dataset):[VuLLM fine-tuned on VulGen](https://drive.google.com/file/d/145QiDo1MI60ewsLbRFwXJWAycWLz9uns/view?usp=sharing)</a>
+  - Download Fine-tuned model on VuLLM Dataset shorter than 5:[VuLLM shorter than 5](https://drive.google.com/file/d/1tu3BTaPrKnkB8fdKYfFMwTMSSfxAT1Uy/view?usp=sharing)
+  - Download Fine-tuned model on VuLLM Dataset shorter than 10:[VuLLM shorter than 10](https://drive.google.com/file/d/1grzsfX1xBcjc8C_I8EAKbwJJXfJ02Awd/view?usp=sharing)
+  - Download Fine-tuned model on VuLLM Dataset shorter than 20:[VuLLM shorter than 20](https://drive.google.com/file/d/1JeRjE3HeOg4E95efIfl0xzUvGuNVeIjL/view?usp=sharing)
+  - Download Fine-tuned model on VuLLM Dataset shorter than 30:[VuLLM shorter than 30](https://drive.google.com/file/d/1-jpCV-lZx7CEAEmSnUSwyJNIe_XHaedt/view?usp=sharing)
+
+
 ## Reproduce Tables Results
 
-### Get Results of Acuurecy in Table 1 - Infernce VuLLM OM.
-1. Download Download VulGen 775 samples Test set ans save it.
-2. Open `reproduce/table1.sh` change the following Arguments:
+### Get Results of Accuracy in Table 1 - Infernce VuLLM OM.
+1. Download [VulGen 775 samples Test set](#vulgen-testset) and save it.
+2. Download [Fine-tuned model for table 1](#model-table1) and save it.
+3. Open `reproduce/table1.sh` change the following Arguments:
 - `path_testset` (str): Path to VulGen 775 samples Test set.
-- `model_path` (str): Path to load lora adapters and the model.
+- `model_path` (str): Path to model for table 1.
 - `output_dir` (srt): Path to where to save the generated vulnerable function from 775 samples.
 3. Run `sh reproduce/table1.sh`
   
