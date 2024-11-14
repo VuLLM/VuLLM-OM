@@ -17,15 +17,13 @@ LineVul is a SOTA vulnerability detection, aimed at evaluating the effectiveness
 
 ## How to Run Tests
 
-The project includes a comprehensive set of scripts to run tests as described in Table 2 of the related article. In the `run_trails` folder, there are two subfolders: `balanced` and `imbalanced`, each containing scripts for different test configurations:
-
-- `Baseline.sh`: Runs the test in Table 2, column "baseline."
-- `Ground_truth.sh`: Runs the test in Table 2, column "ground_truth."
-- `VuLLM.sh`: Runs the test in Table 2, column "VuLLM."
-- `Syn.sh`: Runs the test in Table 2, column "syn."
-- `VGX.sh`: Runs the test in Table 2, column "VGX."
-- `VulGen.sh`: Runs the test in Table 2, column "VulGen."
-- `Wild.sh`: Runs the test in Table 2, column "Wild."
+The project includes a comprehensive set of scripts to run tests as described in Table 3 of the related article. In the `run_trails/imbalanced`
+- `Baseline.sh`: Run the test in Table 3, column "baseline."
+- `OM_VuLLM.sh`: Run the test in Table 3, column "OM_VuLLM."
+- `TM_VuLLM.sh`: Run the test in Table 3, column "TM_VuLLM."
+- `VGX.sh`: Run the test in Table 3, column "VGX."
+- `Syn.sh`: Run the test in Table 3, column "syn."
+- `Wild.sh`: Run the test in Table 3, column "OM VuLLM Wild."
 
 ## Training and Testing on New Data
 
