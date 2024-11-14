@@ -1,14 +1,14 @@
 python detector_models/LineVul/code/linevul/linevul_main.py \
-  --output_dir=./saved_models/imbalanced_devign_reveal/vullm_4000 \
+  --output_dir=./saved_models/imbalanced_devign_reveal/vullm_463 \
   --model_type=roberta \
   --tokenizer_name=microsoft/codebert-base \
   --model_name_or_path=microsoft/codebert-base \
   --do_train \
   --do_test \
-  --train_data_file=detector_models/LineVul/code/data/train_linevul_test_reveal/VuLLM_OM_add_4000_vuls.csv \
+  --train_data_file=detector_models/LineVul/code/data/train_linevul_test_reveal/VuLLM_TM_train.csv \
   --eval_data_file=detector_models/LineVul/code/data/train_linevul_test_reveal/test.csv \
   --test_data_file=detector_models/LineVul/code/data/train_linevul_test_reveal/test.csv \
-  --epochs 10 \
+  --epochs 3 \
   --block_size 512 \
   --train_batch_size 64 \
   --eval_batch_size 128 \

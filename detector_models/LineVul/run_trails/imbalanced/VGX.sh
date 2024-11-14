@@ -5,7 +5,7 @@ python detector_models/LineVul/code/linevul/linevul_main.py \
   --model_name_or_path=microsoft/codebert-base \
   --do_train \
   --do_test \
-  --train_data_file=detector_models/LineVul/code/data/train_linevul_test_reveal/train_vgx_add_479_vuls.csv \
+  --train_data_file=detector_models/LineVul/code/data/train_linevul_test_reveal/vgx_train.csv \
   --eval_data_file=detector_models/LineVul/code/data/train_linevul_test_reveal/test.csv \
   --test_data_file=detector_models/LineVul/code/data/train_linevul_test_reveal/test.csv \
   --epochs 10 \
