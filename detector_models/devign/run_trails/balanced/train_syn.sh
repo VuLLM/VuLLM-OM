@@ -1,1 +1,0 @@
-./run_trails/balanced/train_model_balanced.sh data/syn_input

@@ -1,1 +1,0 @@
-./run_trails/imbalanced/train_model_imbalanced.sh data/ground_truth_input

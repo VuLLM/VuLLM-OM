@@ -18,3 +18,4 @@ detector_models/devign/joern/
 *.sc
 *.pt
 *.bat
+zip.py
