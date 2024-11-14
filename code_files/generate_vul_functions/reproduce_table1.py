@@ -98,14 +98,18 @@ def drop_duplicates(df, nonvul_column_name):
 
 
 
-def get_data(path_testset, nonvul_column_name):
+def get_data(path_testset):
     test = pd.read_csv(path_testset)
+    test = test.sample(n=50, random_state=42)
+    # test = test[:10]
+    nonvul_column_name = 'nonvul'
     test = process_c_functions(test, nonvul_column_name) # maybe already done in the csv --- need to check
-    test = append_spaces_suffix_to_duplicates(test, nonvul_column_name)
-    test.dropna(subset=[nonvul_column_name], inplace=True)
-    test = drop_duplicates(test, nonvul_column_name)
+    test = process_c_functions(test, 'vul')
+    test.dropna(subset=[nonvul_column_name, 'vul'], inplace=True)
+    # test = drop_duplicates(test, nonvul_column_name)
     nonvul = test[nonvul_column_name].tolist()
-    return nonvul
+    vul_funcs = test['vul'].tolist()
+    return nonvul, vul_funcs
 
 
 
@@ -236,7 +240,7 @@ def delete_pre_spaces(s):
         str: The cleaned string with leading spaces removed from each line.
     """
     lines = s.split('\n')
-    cleaned_lines = [line.lstrip() for line in lines]
+    cleaned_lines = [line.strip() for line in lines]
     cleaned_lines = [line for line in cleaned_lines if line != ""]
     result = '\n'.join(cleaned_lines)
     return result
@@ -318,6 +322,31 @@ def modify_functions(functions, modifications):
             continue
 
     return modified_functions, num_of_problem_functions
+
+
+def get_accurecy(vuls, vul_funcs):
+    """
+    Calculate the accuracy of vulnerability detection.
+
+    Args:
+        vuls (list): List of generated vulnerabilities.
+        vul_funcs (DataFrame): DataFrame containing vulnerability functions.
+
+    Returns:
+        list: List of indices of vulnerabilities that were not detected accurately.
+    """
+    count = 0
+    not_good = []
+    for i in range(len(vuls)):
+        x = delete_pre_spaces(vuls[i])
+        y = delete_pre_spaces(vul_funcs[i]) 
+        if x == y:
+            count += 1
+        else:
+            not_good.append(i)
+    print(f"Accuracy: {count/len(vuls)}")
+    return not_good
+
 
 
 
@@ -417,7 +446,7 @@ def is_accurecy(eval_preds, tokenizer):
 
     
 
-def get_modifications(nonvul, model_path):    
+def get_modifications(path_testset, model_path):    
     # torch.cuda.set_device(0)
     os.environ["TOKENIZERS_PARALLELISM"] = "true"
     torch.backends.cuda.matmul.allow_tf32 = True
@@ -425,9 +454,14 @@ def get_modifications(nonvul, model_path):
     max_seq_length = 4000
     
     model, tokenizer = Nxcode_7B.create_model_and_tokenizer_one_GPU(model_path)
-
-    test = pd.DataFrame(nonvul, columns=['nonvul'])
-    test['prompt'] = test.apply(lambda row: f"""function:\n{row['nonvul']}\nInstruction:\n""", axis=1)
+    eos = tokenizer.eos_token
+    path_trainset = "Datasets/vulgen_datasets/vulgen_test_775.csv"
+    full_vulgen = False
+    eos = tokenizer.eos_token
+    
+    _, test = Prepare_dataset_with_only_replace_only_encoder.create_datasets(path_trainset, path_testset, full_vulgen=full_vulgen)
+    # train['prompt'] = train.apply(lambda row: f"""function:\n{row['inputs']}\nInstruction:\n{row['outputs']}{eos}""", axis=1)
+    test['prompt'] = test.apply(lambda row: f"""function:\n{row['inputs']}\nInstruction:\n{row['outputs']}{eos}""", axis=1)
     test.dropna(subset=['prompt'], inplace=True)
 
     # test['cwe'] = test['cwe'].fillna(-1)
@@ -441,6 +475,9 @@ def get_modifications(nonvul, model_path):
 
 
     test = test.filter(filter_long_samples)
+    nonvul = test['nonvul']
+    vul = test['vul']
+    test = test.remove_columns([col for col in test.column_names if col != 'prompt'])
     test = test.map(lambda example: tokenizer(example['prompt'], truncation=True, max_length=max_seq_length, padding=False), batched=True)
     print("Test length: ", len(test))
     # Create train and test dataloaders
@@ -451,18 +488,20 @@ def get_modifications(nonvul, model_path):
         gnerated_text = tokenizer.decode(generated_tokens[:-1])
         modify_instructions.append(gnerated_text)
         
-    return modify_instructions, test['nonvul']
+    return modify_instructions, nonvul, vul
         
 
 
-def main(path_testset, model_path, nonvul_column_name, output_dir):
+def main(path_testset, model_path, output_dir):
     # load_dotenv()
-    nonvul = get_data(path_testset, nonvul_column_name)
-    modification_instructions, nonvul = get_modifications(nonvul, model_path)
-    vuls, num_of_problem = modify_functions(nonvul, modification_instructions)
+    # nonvul, vul_funcs = get_data(path_testset)
+    modification_instructions, nonvul_fillter, vul_fillter = get_modifications(path_testset, model_path)
+    vuls, num_of_problem = modify_functions(nonvul_fillter, modification_instructions)
     print(num_of_problem)
-    print("length of vuls: ", len(vuls))
+    not_good = get_accurecy(vuls, vul_fillter)
+    print(not_good)
     df = pd.DataFrame()
+    # df['non-vul'] = nonvul
     df['vul'] = vuls
     df.to_csv(output_dir, index=False)
 
@@ -471,7 +510,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Train a model with specific command line arguments.')
     parser.add_argument('--path_testset', type=str, default='Dataset_VulGen/vulgen_test_775_with_diff_lines_spaces.csv', help='Path to test set csv file')
     parser.add_argument('--model_path', type=str, default='saved_models/codeQwen-onlyCWE-shorter-than20/checkpoint-230956', help='Path to test set csv file')
-    parser.add_argument('--nonvul_column_name', type=str, default='nonvul', help='Column name in the daframe where there is the non vulnerable fucntion')
-    parser.add_argument('--output_dir', type=str, default='connected_models/generated_vul/vulgen_res.csv', help='Path to where to save the new vulnerable functions csv file')
+    parser.add_argument('--output_dir', type=str, default='gen_vuls/vulgen_res.csv', help='Path to where to save the new vulnerable functions csv file')
     args = parser.parse_args()
-    main(args.path_testset, args.model_path, args.nonvul_column_name, args.output_dir)
+    main(args.path_testset, args.model_path, args.output_dir)

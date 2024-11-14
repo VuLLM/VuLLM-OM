@@ -25,7 +25,7 @@ def create_model_and_tokenizer_one_GPU(checkpoint):
     tokenizer.padding_side = 'right'
     # tokenizer.deprecation_warnings["Asking-to-pad-a-fast-tokenizer"] = True
     model = AutoModelForCausalLM.from_pretrained(checkpoint,
-                                             device_map="auto", torch_dtype=torch.bfloat16)
+                                             device_map="cuda:0", torch_dtype=torch.bfloat16)
     model.generation_config.do_sample = False
     model.generation_config.top_p = 0
     return model, tokenizer

@@ -89,18 +89,6 @@ def get_model_tokenizer(localization_model_id):
                                                 )
     tokenizer = AutoTokenizer.from_pretrained(localization_model_id)
     tokenizer.deprecation_warnings["Asking-to-pad-a-fast-tokenizer"] = True
-
-    # Load the Lora model
-    # localization_model = PeftModel.from_pretrained(localization_model, localization_model_id).to(device)
-
-    # localization_model.config.max_length=359
-    # localization_model.config.use_cache=False
-    # localization_model.config.decoder_start_token_id = tokenizer.bos_token_id  # Replace tokenizer.cls_token_id with the appropriate token ID
-    # localization_model.config.pad_token_id = 50256
-    # localization_model.config.decoder.pad_token_id = localization_model.config.decoder.eos_token_id
-    # localization_model.config.encoder.pad_token_id = localization_model.config.encoder.eos_token_id
-    # localization_model.config.encoder.max_length = 359
-    # localization_model.config.decoder.max_length = 359
     return localization_model, tokenizer
 
 

@@ -578,8 +578,10 @@ def create_datasets(path_trainset, path_testset, full_vulgen=False):
         tokenized_test (Dataset): Tokenized testing dataset.
     """
     train = get_train(path_trainset, full_vulgen)
+    # train = train[:1]
     # train = train[train['nonvul'].str.len() <= 4000]
     test = get_test(path_testset, full_vulgen)
+    # test = test[:5]
     test_edits = get_edits(test)
     train_edits = get_edits(train)
     train['inputs'] = get_inputs(train)

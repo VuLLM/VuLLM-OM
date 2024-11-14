@@ -113,16 +113,16 @@ def is_accurecy(eval_preds, tokenizer):
 def main():    
     # torch.cuda.set_device(0)
     os.environ["TOKENIZERS_PARALLELISM"] = "true"
-    checkpoint = "saved_models/codeQwen-fullData-shorter-than30/checkpoint-369344"
+    checkpoint = "saved_models/vulgen-last-check/checkpoint-89112"
     torch.backends.cuda.matmul.allow_tf32 = True
     torch.backends.cudnn.allow_tf32 = True
-    max_seq_length = 1450
+    max_seq_length = 4000
     
     model, tokenizer = Nxcode_7B.create_model_and_tokenizer_one_GPU(checkpoint)
 
     # read and tokenized data
     path_trainset = "Datasets/vulgen_datasets/vulgen_test_775.csv"
-    path_testset = "Datasets/full_testset_smaller_than_30_words.csv"
+    path_testset = "Datasets/vulgen_datasets/vulgen_test_775_with_diff.csv"
     full_vulgen = False
     eos = tokenizer.eos_token
     
@@ -144,7 +144,7 @@ def main():
     # train = train.filter(filter_long_samples)
     test = test.filter(filter_long_samples)
     # test.reset_index(drop=True, inplace=True)
-    test = test.map(lambda example: tokenizer(example['prompt'], truncation=True, max_length=1450, padding=False), batched=True)
+    test = test.map(lambda example: tokenizer(example['prompt'], truncation=True, max_length=4000, padding=False), batched=True)
     
     # Create train and test dataloaders
     test_dataloader = torch.utils.data.DataLoader(test, batch_size=1, num_workers=4,shuffle=False)

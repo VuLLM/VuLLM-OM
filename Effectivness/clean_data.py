@@ -102,22 +102,30 @@ if __name__ == '__main__':
     # df = pd.concat([df_target_1, df_target_0])
     # print(df.target.value_counts()) 
     # df.to_csv('detector_models/LineVul/code/data/train_linvul_balanced_test_msr/devign_test_linevul_balanced.csv')
-    df = pd.read_csv('Effectivness/VuLLM_genearted_vuls/shorter_than20_create_newVul_5000.csv')
-    df['name'] = df['func'].apply(lambda x: x.split('(')[0].split()[-1])
-    names = df['name'].tolist()
-    div = pd.read_csv('Effectivness/datasets/diversevul.csv')
-    print(len(div))
-    div = div[div['target'] != 1]
-    div.dropna(subset=['func'], inplace=True)
-    print(len(div))
-    def extract_name(x):
-        try:
-            return x.split('(')[0].split()[-1]
-        except IndexError:
-            return None
+    # df = pd.read_csv('Effectivness/VuLLM_genearted_vuls/shorter_than20_create_newVul_5000.csv')
+    # df['name'] = df['func'].apply(lambda x: x.split('(')[0].split()[-1])
+    # names = df['name'].tolist()
+    # div = pd.read_csv('Effectivness/datasets/diversevul.csv')
+    # print(len(div))
+    # div = div[div['target'] != 1]
+    # div.dropna(subset=['func'], inplace=True)
+    # print(len(div))
+    # def extract_name(x):
+    #     try:
+    #         return x.split('(')[0].split()[-1]
+    #     except IndexError:
+    #         return None
 
-    div['name'] = div['func'].apply(extract_name)
-    div = div[div['name'].isin(names)]
-    div.drop_duplicates(subset=['name'], inplace=True, keep='first')
-    print(len(div))
-    div.to_csv('Effectivness/datasets/diversevul_TM_for_gen.csv', index=False)
+    # div['name'] = div['func'].apply(extract_name)
+    # div = div[div['name'].isin(names)]
+    # div.drop_duplicates(subset=['name'], inplace=True, keep='first')
+    # print(len(div))
+    # div.to_csv('Effectivness/datasets/diversevul_TM_for_gen.csv', index=False)
+    
+    df = pd.read_csv('Effectivness/datasets/diversevul_inRange_250_1000_16000Samples.csv')
+    # print(df.columns)
+    # print(df.shape)
+    # print(df.target.value_counts())
+    df.rename(columns={'func': 'nonvul'}, inplace=True)
+    df_sample = df.sample(n=1050)
+    df_sample.to_csv('Effectivness/datasets/divers_1050_nonvuls.csv', index=False)
