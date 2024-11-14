@@ -116,8 +116,9 @@ pip install -r requirements.txt
 
 ### Get Results of Relative Accurecy in Table 2
 1. Download the testsets of VuLLM Dataset Samples Subsets.
-2. Download 4 models for shorter than 5,10,20,30.
-3. Open `reproduce/table1.sh` change the following Arguments:
+- In the CSVs Make sure that the column with vulneravle functions called `vul` and with the non-vulnerable functions called `nonvul`
+3. Download 4 models for shorter than 5,10,20,30.
+4. Open `reproduce/table1.sh` change the following Arguments:
 - `path_testset` (str): Path to currect testset.
 - `model_path` (str): Path to currect model.
 - `output_dir` (srt): Path to where to save the generated vulnerable functions.
