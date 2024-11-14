@@ -130,50 +130,7 @@ pip install -r requirements.txt
 #### Devign
 - Read README.md for this folder in this path `detector_models/Devign/VuLLM_README.md`
 
-  
-#### Infernce VuLLM on 775 samples from VulGen test set
-
-Run `connected_models/pipeline_localization_vulgen.py`<br>
-Arguments:
-- `path_testset` (str): Path to test set csv file.
-- `model_huggingface_path` (str): Path to load lora adapters form huggingface.
-- `all_vulgen` (bool): Is the test set is the whole test set of VulGen?
-- `output_dir` (srt): Path to where to save the loclization csv file.
-
-To run on 775 samples from VulGen, path_testset: `Dataset_VulGen/vulgen_test_775_with_diff_lines_spaces.csv`.
-
-#### Example for running
-
-`python connected_models/pipeline_localization_vulgen.py --path_testset Dataset_VulGen/vulgen_test_775_with_diff_lines_spaces.csv --model_huggingface_path urizlo/CodeT5-6B-inject-acc0.6793-dropout0.05-r64-lr6e-5-epochs30-dropDuplicate --all_vulgen True --output_dir connected_models/localization_results/vulgen_res_loc.csv`
-
-#### Infernce Injection model on 775 samples from VulGen test set
-
-Run `connected_models/pipeline_injection_vulgen.py`<br>
-Arguments:
-- `path_testset` (str): Path to test set csv file.
-- `model_huggingface_path` (str): Path to load lora adapters form huggingface.
-- `all_vulgen` (bool): Is the test set is the whole test set of VulGen?
-- `path_res_local` (str): Path to localization results of the testset.
-- `output_dir` (srt): Path to where to save the loclization csv file.
-
-#### Example for running
-
-`python connected_models/pipeline_injection_vulgen.py --path_testset Dataset_VulGen/vulgen_test_775_with_diff_lines_spaces.csv --model_huggingface_path urizlo/CodeT5-6B-local-acc0.5271-dropout0.05-r64-lr6e-5-epochs30-dropDuplicate --all_vulgen True --path_res_local connected_models/localization_results/vulgen_res_loc.csv --output_dir connected_models/injection_results/vulgen_res_inj.csv`
-
-#### Operate Replacment component
-
-Run `connected_models/replace_function_with_line_spaces_vulgen.py`<br>
-Arguments:
-- `path_testset` (str): Path to test set csv file.
-- `path_res_local` (str): Path to localization results of the testset.
-- `path_res_inj` (str): Path to injection results of the testset.
-- `all_vulgen` (bool): Is the test set is the whole test set of VulGen?
-- `output_dir` (srt): Path to where to save the new vulnerable functions csv file.
-
-#### Example for running
-
-`python connected_models/replace_function_with_line_spaces_vulgen.py --path_testset Dataset_VulGen/vulgen_test_775_with_diff_lines_spaces.csv --path_res_local connected_models/localization_results/vulgen_res_loc.csv  --path_res_inj connected_models/injection_results/vulgen_res_inj.csv --all_vulgen True --output_dir connected_models/genrated_vul/vulgen_res.csv`
-
+---------------------------------------------------------------------------------------------------------------------------
 ## Usage
 
 ### Fine-tuning the Localization Model
@@ -287,16 +244,6 @@ Arguments:
 
 `python connected_models/replace_function_with_line_spaces_custom_dataset.py --path_testset Dataset_VulGen/vulgen_test_775_with_diff_lines_spaces.csv --path_res_local connected_models/localization_results/custom_res_loc.csv  --path_res_inj connected_models/injection_results/custom_res_inj.csv --all_vulgen True --output_dir connected_models/genrated_vul/custom_res.csv`
 
-
-### Get Results of Effectiveness in Table 2.
-
-#### LineVul
-
-Read README.md for this folder in this path `detector_models/LineVul/VuLLM_README.md`
-
-#### Devign
-
-Read README.md for this folder in this path `detector_models/Devign/VuLLM_README.md`
 
 
 ## License
