@@ -105,20 +105,29 @@ pip install -r requirements.txt
 
 ## Reproduce Tables Results
 
-### Get Results of Accuracy in Table 1 - Inference VuLLM OM.
+### Get Results of Comperative Accuracy in Table 1 - Inference VuLLM OM.
 1. Download [VulGen 775 samples Test set](#vulgen-testset) and save it.
 2. Download [Fine-tuned model for table 1](#model-table1) and save it.
 3. Open `reproduce/table1.sh` change the following Arguments:
 - `path_testset` (str): Path to VulGen 775 samples Test set.
 - `model_path` (str): Path to model for table 1.
-- `output_dir` (srt): Path to where to save the generated vulnerable function from 775 samples.
-3. Run `sh reproduce/table1.sh`
+- `output_dir` (srt): Path to where to save the generated vulnerable functions from 775 samples.
+3. Run `sh reproduce/tables.sh`
+
+### Get Results of Relative Accurecy in Table 2
+1. Download the testsets of VuLLM Dataset Samples Subsets.
+2. Download 4 models for shorter than 5,10,20,30.
+3. Open `reproduce/table1.sh` change the following Arguments:
+- `path_testset` (str): Path to currect testset.
+- `model_path` (str): Path to currect model.
+- `output_dir` (srt): Path to where to save the generated vulnerable functions.
+3. Run `sh reproduce/tables.sh`
 
 ### Get Resutls of Effectivness in Table 3
 #### LineVul
-Read README.md for this folder in this path `detector_models/LineVul/VuLLM_README.md`
+- Read README.md for this folder in this path `detector_models/LineVul/VuLLM_README.md`
 #### Devign
-Read README.md for this folder in this path `detector_models/Devign/VuLLM_README.md`
+- Read README.md for this folder in this path `detector_models/Devign/VuLLM_README.md`
 
   
 #### Infernce VuLLM on 775 samples from VulGen test set
