@@ -25,15 +25,17 @@ Before running the project, ensure all dependencies are installed. Run the follo
 
 ## How to Run Tests
 
-The project includes a comprehensive set of scripts to run tests as described in Table 2 of the related article. In the `run_trails` folder, there are two subfolders: `balanced` and `imbalanced`, each containing scripts for different test configurations:
+- [Download all devign data](https://drive.google.com/file/d/1uNn4iN7cEZbUnTLxI8KVK4Mj3dw6kXUv/view?usp=sharing)
+- Unzip this ZIP file and locate it in this path: `detector_models/devign/data`
 
-- `train_baseline.sh`: Runs the test in Table 2, column "baseline."
-- `train_ground_truth.sh`: Runs the test in Table 2, column "ground_truth."
-- `train_my_gen_data.sh`: Runs the test in Table 2, column "VuLLM."
+The project includes a comprehensive set of scripts to run tests as described in Table 3 of the related article. In the `run_trails\imbalanced`
+
+- `Baseline.sh`: Runs the test in Table 3, column "Baseline."
+- `OM_VuLLM.sh`: Runs the test in Table 3, column "OM VuLLM."
+- `TM_VuLLM.sh`: Runs the test in Table 3, column "TM VuLLM."
+- - `train_VGX.sh`: Runs the test in Table 3, column "VGX."
 - `train_syn.sh`: Runs the test in Table 2, column "syn."
-- `train_VGX.sh`: Runs the test in Table 2, column "VGX."
-- `train_vulgen_gen.sh`: Runs the test in Table 2, column "VulGen."
-- `train_wild.sh`: Runs the test in Table 2, column "Wild."
+- `train_wild.sh`: Runs the test in Table 2, column "OM VuLLM Wild."
 
 ## Training and Testing on New Data
 
