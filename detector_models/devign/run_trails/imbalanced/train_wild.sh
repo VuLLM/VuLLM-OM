@@ -1,0 +1,1 @@
+./run_trails/imbalanced/train_model_imbalanced.sh data/my_wild_gen_input
