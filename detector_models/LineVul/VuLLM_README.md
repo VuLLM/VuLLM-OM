@@ -18,7 +18,7 @@ LineVul is a SOTA vulnerability detection, aimed at evaluating the effectiveness
 ## How to Run Tests
 
 ### Download CSV files
-- [Download CSV files from here](https://drive.google.com/drive/folders/1fS8rK0jcqloSZZuw2PKXd23BVPZSYTCW?usp=sharing)
+- [Download CSV files from here](https://drive.google.com/file/d/1J5jljtPMJp3iB0YEu4ZPZwmtjshIBbQ4/view?usp=sharing)
 - Move this files to this foler in this path in the project `detector_models/LineVul/code/data/train_linevul_test_reveal`
 
 ### Run Trails
