@@ -5,7 +5,6 @@ import numpy as np
 import evaluate
 import os
 import sys
-sys.path.append('/sise/home/urizlo/VuLLM_One_Stage')
 from utils import Nxcode_7B, Create_lora_starCoder, Custom_SFTTrainer
 from code_files.preprocess_data import Prepare_dataset_with_only_replace_only_encoder
 # import argparse
@@ -112,8 +111,7 @@ def main():
     # # config env varibles
     # NEPTUNE_API_TOKEN = os.environ.get("NEPTUNE_API_TOKEN")
     # NEPTUNE_PROJECT = os.environ.get("NEPTUNE_PROJECT")
-    os.environ["NEPTUNE_API_TOKEN"] = 'eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiI4Y2VlNTFhZC1hODJkLTQ4NzItOTE0MS0yZmNkNWY3ZWE0MTEifQ=='
-    os.environ["NEPTUNE_PROJECT"] = 'zlotman/Localization-model'
+    
     os.environ["NCCL_P2P_DISABLE"] = "1"
     os.environ["TOKENIZERS_PARALLELISM"] = "true"
     # Disable Neptune environment variables
